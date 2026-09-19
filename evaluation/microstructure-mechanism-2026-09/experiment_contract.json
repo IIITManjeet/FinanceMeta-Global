@@ -1,21 +1,142 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v1",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v1",
   "status": "FROZEN_PRE_RESULT",
   "frozen_date": "2026-09-19",
+  "amended_date": "2026-09-19",
   "authority": {
     "evidence_gate_issue": "build-the-future-11/FinanceMeta-Global#51",
     "parent_issue": "build-the-future-11/FinanceMeta-Global#47",
     "builder": "Manjeet Pathak",
-    "repository_url": null,
+    "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
+    "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
+    "pull_request": "build-the-future-11/FinanceMeta-Global#57",
+    "freeze_tag": "microstructure-freeze-v2",
+    "superseded_tags": [
+      "microstructure-freeze-v1"
+    ],
     "freeze_commit_sha": null,
-    "freeze_tag": null
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v2 (git rev-parse microstructure-freeze-v2^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name."
   },
   "freeze": {
     "results_inspected": false,
     "simulator_implemented_at_freeze": false,
     "parameters_may_change_after_results": false,
     "third_mechanism_may_be_added_after_results": false,
-    "amendments": []
+    "amendments": [
+      {
+        "id": "A1",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/metrics/primary/implementation_shortfall_bps and /metrics/decision_metric",
+        "old_rule": "Implementation shortfall computed from the size-weighted average execution price of executed lots only; undefined for zero-fill runs, handled by seed-paired complete cases.",
+        "new_rule": "Perold implementation shortfall over the whole parent order including an opportunity-cost mark on the unfilled remainder at the frozen horizon. Defined for every retained run including zero-fill.",
+        "reason": "Executed-only shortfall compares different selected subsets of the parent order across mechanisms with different fill probabilities, so a low-fill mechanism can appear cheaper. Reviewer required a parent-order cost definition that includes unfilled quantity.",
+        "reviewer_reference": "PR #57 review, P0 decision metric must handle partial / zero fills",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A2",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/order_flow/event_schema and /controls/identity_run",
+        "old_rule": "Cancel events carried a uniform draw resolved against the arm's current resting background orders; cancel intensity converted to an event rate at a nominal 200-lot reference book.",
+        "new_rule": "Every LIMIT intent carries an immutable intent_id. Cancels are derived per intent as cancel_at = t + Exponential(rate = 0.14 * size) and carry a fixed target_intent_id. A cancel whose target is not resting is a counted no-op.",
+        "reason": "A uniform draw resolved against the live resting list selects a different order in each arm once allocation diverges, so the identity claim was weaker than the protocol stated. Per-intent lifetimes implement the declared per-lot intensity literally.",
+        "reviewer_reference": "PR #57 review, P0 identity control needs an exact cancellation/event schema",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A3",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/metrics/decision_metric",
+        "old_rule": "Bootstrap described as a mean difference across seeds without the pairing being frozen in the contract text.",
+        "new_rule": "Inference frozen as paired by seed on per-seed PRO_RATA minus FIFO differences. Independent resampling of the two mechanism arms is prohibited.",
+        "reason": "Seeds are matched across arms by construction, so the inference must be paired. The implementation already resampled paired differences; the contract did not say so.",
+        "reviewer_reference": "PR #57 review, P0 paired design must use a paired inference rule",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A4",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/negative_result_criteria",
+        "old_rule": "UNSTABLE, LATENCY_DRIVEN and ASSUMPTION_DRIVEN stated in prose without numerical rules; overlap and precedence unstated.",
+        "new_rule": "Each label carries an exact numerical rule. UNSTABLE uses an exact two-sided binomial sign test and is evaluated only when NULL does not hold. LATENCY_DRIVEN and ASSUMPTION_DRIVEN each require both a confidence interval containing zero in the comparison cell and attenuation of at least half the baseline effect. Overlap is permitted and reporting precedence is fixed.",
+        "reason": "Reviewer required numerical operationalisation. UNSTABLE is conditioned on non-NULL because brief.md section 8 treats UNSTABLE as a stop condition while a NULL result is a valid completion; an unconditional rule would make most NULL results also stop conditions.",
+        "reviewer_reference": "PR #57 review, P0 negative-result labels need numerical rules",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A5",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/controls/zero_latency_control and /latency",
+        "old_rule": "Zero-latency control described as all agents at 0 ms and declared included_in_grid, while the grid sweeps only the tracked agent and holds background latency at 5 ms.",
+        "new_rule": "The control is the tracked_agent_one_way_ms = 0 cell of the main grid. Background latency is declared to have no dynamic effect under non-reactive zero-intelligence agents, so all agents at 0 ms and tracked agent at 0 ms coincide.",
+        "reason": "The contract claimed a control the run matrix did not contain. The reviewer offered either a distinct all-agents-zero cell or an honest redefinition; under the frozen non-reactive participant assumption an extra cell would be identical to the tracked-zero cell and would test nothing, so the redefinition is the substantive remedy. Run matrix is unchanged at 540.",
+        "reviewer_reference": "PR #57 review, item 1 on the zero-latency control",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A6",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/robustness_cell",
+        "old_rule": "Rationale claimed that removing size heterogeneity makes pro-rata degenerate toward price-time priority.",
+        "new_rule": "The cell removes background order-size heterogeneity only. The tracked display order remains 10 lots, so pro-rata does not reduce to price-time priority in this cell.",
+        "reason": "The original claim was false in general and also false for this cell specifically, because the tracked order keeps a non-unit size. Setting the tracked display to 1 lot would make the arms provably identical in the cell and would trigger ASSUMPTION_DRIVEN on every non-null result, so the tracked size is deliberately unchanged.",
+        "reviewer_reference": "PR #57 review, item 2 on the constant_order_size rationale",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A7",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/initial_book_state/ladder, /mechanisms/B, /metrics/primary/queue_and_wait",
+        "old_rule": "Initial book given only as mid, levels and lots per level. Pro-rata behaviour when the aggressor quantity is smaller than the number of eligible orders was unstated. Queue-measure comparability was unstated.",
+        "new_rule": "Exact bid and ask price ladder frozen. Pro-rata under-allocation rule frozen with two worked examples. Queue measures declared descriptive only and never differenced across mechanisms; wait time is the cross-mechanism queue comparison.",
+        "reason": "Reviewer required these frozen as fields rather than prose so they can be enforced.",
+        "reviewer_reference": "PR #57 review, P1 initial book / pro-rata edge semantics",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A8",
+        "timestamp_utc": "2026-09-19T10:30:00Z",
+        "section": "/authority and /reproduction/source_sha",
+        "old_rule": "repository_url, freeze_commit_sha and freeze_tag were null; brief.md carried a visible TBD for the freeze commit SHA.",
+        "new_rule": "Repository, freeze branch, pull request and freeze tag populated. freeze_commit_sha remains null with an explicit freeze_identity_rule naming the PR head, the tag and the CI evidence artifact.",
+        "reason": "Reviewer asked for the artifact to be self-identifying while also warning against a self-referential commit-hash requirement. The two reviews conflict on this point; the later instruction is followed and the SHA is not embedded, because this file is part of the commit it would name.",
+        "reviewer_reference": "PR #57 review, item 3 on null placeholders and P1 remove unresolved freeze placeholders",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
+        },
+        "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      }
+    ]
   },
   "research_question": "Under an identical prespecified synthetic order-flow realization and latency model, how do price-time priority and pro-rata allocation differ in execution quality and queue outcomes for a tracked passive parent order?",
   "hypotheses": {
@@ -38,7 +159,34 @@
       "rounding": "largest_remainder",
       "tie_break": "arrival_sequence",
       "min_allocation_lots": 1,
-      "residual": "swept FIFO by arrival_sequence"
+      "min_allocation_semantics": "participation floor, not a guaranteed allocation",
+      "residual": "swept FIFO by arrival_sequence",
+      "under_allocation_rule": "When the aggressor quantity is smaller than the number of eligible resting orders, no order is guaranteed a lot. Pass 1 allocates floor(demand * size_i / total) capped at size_i, which is zero for any order whose share is below one whole lot. Pass 2 awards the remaining lots one at a time by descending fractional remainder, ties broken by lower arrival_sequence. Pass 3 sweeps lots stranded by size caps in arrival_sequence order.",
+      "under_allocation_worked_examples": [
+        {
+          "resting": "X=1 lot (seq 1), Y=1 lot (seq 2), Z=1 lot (seq 3)",
+          "aggressor_lots": 2,
+          "expected_fifo": {
+            "X": 1,
+            "Y": 1
+          },
+          "expected_pro_rata": {
+            "X": 1,
+            "Y": 1
+          }
+        },
+        {
+          "resting": "X=1 lot (seq 1), Y=1 lot (seq 2), Z=5 lots (seq 3)",
+          "aggressor_lots": 2,
+          "expected_fifo": {
+            "X": 1,
+            "Y": 1
+          },
+          "expected_pro_rata": {
+            "Z": 2
+          }
+        }
+      ]
     },
     "held_constant": [
       "book format",
@@ -52,14 +200,34 @@
   "order_flow": {
     "generator": "zero_intelligence_poisson",
     "state_independent": true,
-    "state_independence_rationale": "A state-independent exogenous stream is required so the identity control is provable by hash equality across mechanisms.",
+    "state_independence_rationale": "The complete intent stream is drawn before any book exists and never consults book state, so both mechanism arms provably consume the same realization and the identity control is a hash comparison rather than a promise.",
     "limit_order_rate_per_level_per_sec": 1.2,
     "levels_from_opposite_best": 5,
     "market_order_rate_per_side_per_sec": 0.9,
     "cancel_rate_per_resting_lot_per_sec": 0.14,
-    "order_size_distribution_lots": {"1": 0.5, "2": 0.25, "5": 0.15, "10": 0.1},
+    "order_size_distribution_lots": {
+      "1": 0.5,
+      "2": 0.25,
+      "5": 0.15,
+      "10": 0.1
+    },
     "tick_size": 1,
-    "initial_mid_price": 1000
+    "initial_mid_price": 1000,
+    "event_schema": {
+      "intent_kinds": [
+        "LIMIT",
+        "MARKET",
+        "CANCEL"
+      ],
+      "intent_id": "Every LIMIT intent carries a unique immutable intent_id assigned at generation. It is the resting order id in every arm.",
+      "limit_price": "book_relative: price = opposite_best - offset * tick for BUY, opposite_best + offset * tick for SELL, with offset drawn uniformly from 1..levels_from_opposite_best at generation and resolved against the arm's own book on arrival. Absolute prices may therefore differ across arms while the intent is identical. If the opposite side is empty on arrival the intent is a counted no-op (limit_no_op) and its intent_id never rests.",
+      "cancel_target": "Every CANCEL intent carries a target_intent_id fixed at generation. For each LIMIT intent i, cancel_at_i = t_i + Exponential(rate = cancel_rate_per_resting_lot_per_sec * size_i), with the hazard fixed at placement on the placed size and never re-drawn after partial fills. A cancel whose target is not resting when it lands, because it was filled, already cancelled or never placed, is a counted no-op (cancel_no_op).",
+      "cancel_targets_tracked_orders": false,
+      "market_order": "Executes against the arm's own book. An empty opposite side is a counted no-op (market_no_op). Quantity beyond available depth executes the available depth and the remainder lapses.",
+      "seeded_ladder": "The ten initial ladder orders are intents 1..10 at t = 0 at the absolute prices in initial_book_state.ladder, included in the hash, and cancellable under the same hazard.",
+      "identity_hash_scope": "sha256 over the canonical serialization of the full pre-mechanism intent stream (seq, t, kind, side, size, offset, intent_id, target_intent_id). Resolved book coordinates and no-op outcomes are mechanism-dependent by design and are not hashed.",
+      "horizon_counting": "events_per_run_after_warm_up counts intents of all three kinds in the merged time-ordered stream."
+    }
   },
   "participants": {
     "background": "non-adaptive zero-intelligence agents; sizes drawn from the frozen distribution; no strategic response to mechanism",
@@ -71,17 +239,59 @@
       "reprice_rule": "cancel and replace when best bid moves",
       "benchmark": "arrival mid price"
     },
-    "declared_limitation": "Zero-intelligence agents do not inflate order size under pro-rata. The simulator therefore cannot reproduce strategic size inflation, which is the principal real-world behavioural consequence of pro-rata allocation."
+    "declared_limitation": "Zero-intelligence agents do not inflate order size. The simulator therefore cannot reproduce strategic size inflation, which is the principal real-world behavioural consequence of pro-rata allocation."
   },
   "latency": {
     "model": "per-agent constant one-way latency, no jitter",
-    "tracked_agent_one_way_ms": [0, 1, 2, 5, 10, 25, 50, 100],
+    "tracked_agent_one_way_ms": [
+      0,
+      1,
+      2,
+      5,
+      10,
+      25,
+      50,
+      100
+    ],
     "background_one_way_ms": 5,
     "exchange_processing_ms": 0,
-    "matched_baseline_ms": 5
+    "matched_baseline_ms": 5,
+    "background_latency_dynamic_effect": "none under the frozen non-reactive participant assumption",
+    "matched_baseline_meaning": "the tracked agent is given the background's nominal 5 ms so it holds no latency advantage or disadvantage"
   },
   "seed_policy": {
-    "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
     "seed_count": 30,
     "failed_seeds_may_be_discarded": false,
     "bootstrap_seed": 424242
@@ -90,7 +300,29 @@
     "levels_per_side": 5,
     "lots_per_level": 20,
     "mid_price": 1000,
-    "warm_up_events_discarded": 10000
+    "warm_up_events_discarded": 10000,
+    "ladder": {
+      "bid_prices": [
+        999,
+        998,
+        997,
+        996,
+        995
+      ],
+      "ask_prices": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "lots_per_price": 20,
+      "orders_per_price": 1,
+      "best_bid": 999,
+      "best_ask": 1001,
+      "initial_spread_ticks": 2,
+      "placement_order": "bid level 1, ask level 1, bid level 2, ask level 2, and so on, taking arrival_sequence 1..10"
+    }
   },
   "horizon": {
     "events_per_run_after_warm_up": 100000
@@ -98,41 +330,89 @@
   "fees": {
     "maker_bps": 0.0,
     "taker_bps": 0.0,
-    "rationale": "Maker-taker pricing interacts strongly with pro-rata allocation and would confound the mechanism comparison. Zero fees are frozen deliberately and are a declared limitation."
+    "rationale": "Maker-taker pricing interacts strongly with pro-rata allocation and would confound the mechanism comparison. Zero fees are frozen and are a declared limitation."
   },
   "metrics": {
     "primary": [
-      {"id": "fill_probability", "definition": "filled_lots / parent_quantity_lots", "direction": "higher_is_better"},
-      {"id": "implementation_shortfall_bps", "definition": "1e4 * (size_weighted_average_execution_price - arrival_mid) / arrival_mid", "direction": "lower_is_better"},
-      {"id": "spread_at_execution_ticks", "definition": "size-weighted mean quoted spread at each fill", "direction": "lower_is_better"},
-      {"id": "queue_and_wait", "definition": "time_to_first_fill_ms and time_to_full_fill_ms; queue measure is volume_ahead_at_best under FIFO and size_share_at_best under PRO_RATA", "direction": "lower_is_better"},
-      {"id": "price_impact_bps", "definition": "1e4 * (mid_at_horizon_end - arrival_mid) / arrival_mid", "direction": "lower_is_better"}
+      {
+        "id": "fill_probability",
+        "definition": "filled_lots / parent_quantity_lots",
+        "direction": "higher_is_better"
+      },
+      {
+        "id": "implementation_shortfall_bps",
+        "direction": "lower_is_better",
+        "definition": "Perold implementation shortfall of the whole parent order, buy side: 1e4 * (sum_i p_i * q_i + (Q - E) * P_T - Q * P_0) / (Q * P_0), where Q is parent_quantity_lots, E is executed lots, (p_i, q_i) are fill price and lots, P_0 is the reference mid at arrival and P_T is the reference mid at the frozen horizon end.",
+        "includes_unfilled_remainder": true,
+        "defined_for_zero_fill_runs": true,
+        "zero_fill_and_timeout_rule": "E = 0 gives 1e4 * (P_T - P_0) / P_0, so the run enters the decision statistic as pure opportunity cost. No run is excluded, imputed or treated as missing, and every seed pair is complete by construction.",
+        "reference_mid_rule": "M(t) is the arm's own mid at the latest instant at or before t at which both book sides were non-empty, initialised to initial_mid_price 1000, which the seeded ladder guarantees at t = 0. P_0 is M at the first measured event and P_T is M after the last measured event. A run whose P_0 or P_T is carried forward is flagged arrival_mid_carried_forward or horizon_mid_carried_forward and retained.",
+        "horizon_rule": "Every run executes all events_per_run_after_warm_up events regardless of fill state. The horizon end is the frozen event count, never the full-fill time."
+      },
+      {
+        "id": "spread_at_execution_ticks",
+        "definition": "size-weighted mean quoted spread at each fill",
+        "direction": "lower_is_better"
+      },
+      {
+        "id": "queue_and_wait",
+        "definition": "time_to_first_fill_ms and time_to_full_fill_ms; queue measure is volume_ahead_at_best under FIFO and size_share_at_best under PRO_RATA",
+        "direction": "lower_is_better",
+        "comparability": {
+          "queue_measure": "descriptive_only; volume_ahead_at_best is in lots and size_share_at_best is a fraction, so they are different units and are never differenced across mechanisms",
+          "wait_time": "time_to_first_fill_ms and time_to_full_fill_ms are the cross-mechanism queue comparison"
+        },
+        "sampling": "queue measure sampled at each placement of the tracked display order; the run value is the mean over placements, and null if the tracked agent never quoted"
+      },
+      {
+        "id": "price_impact_bps",
+        "definition": "1e4 * (P_T - P_0) / P_0 using the same reference mid rule as implementation shortfall",
+        "direction": "lower_is_better"
+      }
     ],
     "all_primary_reported_every_run": true,
     "decision_metric": {
       "id": "implementation_shortfall_bps",
       "direction": "lower_is_better",
       "compared_at_latency_ms": 5,
-      "statistic": "mean difference PRO_RATA minus FIFO across seeds",
+      "statistic": "mean of per-seed paired differences d_s = IS_PRO_RATA(s) - IS_FIFO(s) over the frozen seeds",
+      "pairing": "paired_by_seed",
+      "bootstrap": "BCa on the 30 per-seed differences; each resample draws 30 seeds with replacement and recomputes the mean of d_s",
+      "independent_arm_resampling_permitted": false,
+      "seed_pairs_required_complete": true,
       "interval": "BCa bootstrap 95 percent confidence interval",
       "bootstrap_resamples": 10000
     },
-    "distributional_summaries_required": ["median", "iqr", "p5", "p95"],
+    "distributional_summaries_required": [
+      "median",
+      "iqr",
+      "p5",
+      "p95"
+    ],
     "means_only_reporting_permitted": false
   },
   "controls": {
     "identity_run": {
-      "description": "For each seed, the serialized exogenous event stream must be byte-identical across both mechanisms.",
-      "verification": "sha256 equality of the serialized pre-latency event stream"
+      "description": "For each seed, the serialized pre-mechanism intent stream must be byte-identical across both mechanisms.",
+      "verification": "sha256 equality of the serialized pre-mechanism intent stream, per seed, per cell",
+      "state_independent_note": "The cancel intensity is applied per intent as a placement-time hazard rather than against live book state, which is what makes the identity claim testable."
     },
     "zero_latency_control": {
-      "description": "All agents at 0 ms one-way latency.",
-      "included_in_grid": true
+      "description": "Tracked agent at 0 ms one-way latency: the tracked_agent_one_way_ms = 0 cell of the main grid.",
+      "background_latency": "Background agents are non-reactive zero-intelligence agents and the exogenous stream is defined as the exchange-side arrival process, so background_one_way_ms has no dynamic effect: a uniform shift of the background stream is invisible to every outcome. All agents at 0 ms and tracked agent at 0 ms therefore coincide.",
+      "realised_by": "main grid cell, tracked_agent_one_way_ms = 0",
+      "distinct_cell": false
     },
     "analytic_sanity_case": {
       "description": "One aggressive market order of 6 lots meets two resting orders at the same price: order X of 2 lots (arrival_sequence 1) and order Y of 10 lots (arrival_sequence 2).",
-      "expected_fifo_allocation_lots": {"X": 2, "Y": 4},
-      "expected_pro_rata_allocation_lots": {"X": 1, "Y": 5}
+      "expected_fifo_allocation_lots": {
+        "X": 2,
+        "Y": 4
+      },
+      "expected_pro_rata_allocation_lots": {
+        "X": 1,
+        "Y": 5
+      }
     },
     "deterministic_replay": {
       "description": "Re-running from (seed, config) must produce a byte-identical per-run output record.",
@@ -142,13 +422,25 @@
   "robustness_cell": {
     "count": 1,
     "id": "constant_order_size",
-    "change": "order_size_distribution_lots replaced by a constant 1 lot",
-    "purpose": "Removes size heterogeneity, under which pro-rata allocation degenerates toward price-time priority.",
+    "change": "order_size_distribution_lots replaced by a constant 1 lot for background intents",
+    "assumption_removed": "background_order_size_heterogeneity",
+    "tracked_display_lots_in_cell": 10,
+    "purpose": "Removes background order-size heterogeneity. With every background order at 1 lot and ties broken by arrival_sequence, largest-remainder pro-rata allocation among background orders coincides with arrival-order allocation, so the background size channel is switched off. The tracked display order of 10 lots is unchanged and remains the only non-unit resting order, so the cell isolates the tracked order's own size share from background heterogeneity. Pro-rata does not reduce to price-time priority in this cell.",
     "applies_at_latency_ms": 5
   },
   "run_matrix": {
-    "main": {"mechanisms": 2, "latency_points": 8, "seeds": 30, "runs": 480},
-    "robustness": {"mechanisms": 2, "latency_points": 1, "seeds": 30, "runs": 60},
+    "main": {
+      "mechanisms": 2,
+      "latency_points": 8,
+      "seeds": 30,
+      "runs": 480
+    },
+    "robustness": {
+      "mechanisms": 2,
+      "latency_points": 1,
+      "seeds": 30,
+      "runs": 60
+    },
     "total_runs": 540
   },
   "exclusions_and_failures": {
@@ -159,16 +451,38 @@
     "minimum_retained_failure_runs_reported": 3
   },
   "negative_result_criteria": {
-    "NULL": "The BCa 95 percent confidence interval for the decision-metric difference contains zero at the matched-latency baseline.",
-    "UNSTABLE": "The sign of the decision-metric difference flips across the frozen seeds.",
-    "LATENCY_DRIVEN": "Any difference present at the matched baseline vanishes in the zero-latency control.",
-    "ASSUMPTION_DRIVEN": "Any difference collapses in the constant_order_size robustness cell.",
+    "NULL": {
+      "rule": "The BCa 95 percent confidence interval of the mean paired difference at the matched-latency baseline contains zero."
+    },
+    "UNSTABLE": {
+      "rule": "Evaluated only when NULL does not hold. Let n_plus and n_minus be the counts of strictly positive and strictly negative per-seed differences at the matched baseline, excluding exact zeros. UNSTABLE holds when the exact two-sided binomial sign test of n_plus against n_minus gives p greater than 0.05.",
+      "implied_for_30_nonzero_pairs": "minority sign count at least 10",
+      "single_opposite_seed_triggers": false,
+      "conditional_on_non_null": true
+    },
+    "LATENCY_DRIVEN": {
+      "rule": "Evaluated only when NULL does not hold. Let D5 be the point estimate at the matched baseline and D0 the paired point estimate at the zero-latency control. Holds when the paired BCa 95 percent interval at 0 ms contains zero AND the absolute value of D0 is at most 0.5 times the absolute value of D5.",
+      "attenuation_ratio_max": 0.5
+    },
+    "ASSUMPTION_DRIVEN": {
+      "rule": "As LATENCY_DRIVEN, with the constant_order_size robustness cell at the matched baseline in place of the zero-latency cell.",
+      "attenuation_ratio_max": 0.5
+    },
+    "overlap_permitted": true,
+    "precedence": [
+      "NULL",
+      "UNSTABLE",
+      "LATENCY_DRIVEN",
+      "ASSUMPTION_DRIVEN",
+      "DIFFERENCE_DETECTED"
+    ],
+    "reporting": "criteria_met lists every label that holds. The headline verdict is the first held label in precedence order. NULL is exclusive by construction because the other labels are conditioned on NULL not holding.",
     "negative_result_is_a_valid_completion": true
   },
   "reproduction": {
     "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
     "environment_lock": null,
-    "source_sha": null
+    "source_sha": "see authority.freeze_identity_rule"
   },
   "reporting": {
     "required": [

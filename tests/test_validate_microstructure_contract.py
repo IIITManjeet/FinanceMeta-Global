@@ -15,6 +15,10 @@ SCRIPT = ROOT / "scripts/validate_microstructure_contract.py"
 CONTRACT = ROOT / "evaluation/microstructure-mechanism-2026-09/experiment_contract.json"
 PROTOCOL = ROOT / "evaluation/microstructure-mechanism-2026-09/PROTOCOL.md"
 
+def _primary(data: dict, metric_id: str) -> dict:
+    return next(entry for entry in data["metrics"]["primary"] if entry["id"] == metric_id)
+
+
 spec = importlib.util.spec_from_file_location("validator", SCRIPT)
 validator = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -35,7 +39,7 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
         validator.validate(self.data, PROTOCOL)
 
     def test_contract_id_cannot_drift(self) -> None:
-        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2"))
+        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3"))
 
     def test_status_cannot_leave_frozen_pre_result(self) -> None:
         self._reject(lambda d: d.__setitem__("status", "EXECUTED"))
@@ -132,8 +136,146 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
     def test_claim_boundary_cannot_drop_synthetic_scope(self) -> None:
         self._reject(lambda d: d.__setitem__("claim_boundary", "Results hold generally across venues."))
 
-    def test_freeze_sha_must_be_full_length_or_null(self) -> None:
-        self._reject(lambda d: d["authority"].__setitem__("freeze_commit_sha", "abc123"))
+    def test_freeze_sha_must_not_be_embedded(self) -> None:
+        """A commit cannot contain its own hash; identity comes from tag + PR head + CI artifact."""
+        self._reject(
+            lambda d: d["authority"].__setitem__(
+                "freeze_commit_sha", "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+            )
+        )
+
+    def test_authoritative_repository_cannot_drift(self) -> None:
+        self._reject(lambda d: d["authority"].__setitem__("repository_url", "https://example.invalid/repo"))
+
+    def test_amendment_log_cannot_be_emptied(self) -> None:
+        self._reject(lambda d: d["freeze"].__setitem__("amendments", []))
+
+    def test_amendment_cannot_be_made_after_frozen_scale_outcomes(self) -> None:
+        self._reject(
+            lambda d: d["freeze"]["amendments"][0]["outcomes_seen_before_change"].__setitem__(
+                "frozen_scale", True
+            )
+        )
+
+    def test_amendment_must_retain_the_superseded_rule(self) -> None:
+        self._reject(lambda d: d["freeze"]["amendments"][0].__setitem__("old_rule", ""))
+
+    def test_amendment_cannot_drop_its_reviewer_reference(self) -> None:
+        self._reject(lambda d: d["freeze"]["amendments"][0].pop("reviewer_reference"))
+
+    def test_decision_metric_cannot_drop_the_unfilled_remainder(self) -> None:
+        self._reject(
+            lambda d: _primary(d, "implementation_shortfall_bps").__setitem__(
+                "includes_unfilled_remainder", False
+            )
+        )
+
+    def test_decision_metric_must_stay_defined_for_zero_fill_runs(self) -> None:
+        self._reject(
+            lambda d: _primary(d, "implementation_shortfall_bps").__setitem__(
+                "defined_for_zero_fill_runs", False
+            )
+        )
+
+    def test_reference_mid_fallback_cannot_be_removed(self) -> None:
+        self._reject(
+            lambda d: _primary(d, "implementation_shortfall_bps").__setitem__(
+                "reference_mid_rule", "the mid at the horizon end"
+            )
+        )
+
+    def test_inference_cannot_stop_being_paired(self) -> None:
+        self._reject(lambda d: d["metrics"]["decision_metric"].__setitem__("pairing", "unpaired"))
+
+    def test_independent_arm_resampling_cannot_be_permitted(self) -> None:
+        self._reject(
+            lambda d: d["metrics"]["decision_metric"].__setitem__(
+                "independent_arm_resampling_permitted", True
+            )
+        )
+
+    def test_cancel_schema_cannot_revert_to_state_resampling(self) -> None:
+        self._reject(
+            lambda d: d["order_flow"]["event_schema"].__setitem__(
+                "cancel_target", "a uniform draw resolved against the current resting orders"
+            )
+        )
+
+    def test_cancels_cannot_be_aimed_at_the_tracked_agent(self) -> None:
+        self._reject(
+            lambda d: d["order_flow"]["event_schema"].__setitem__("cancel_targets_tracked_orders", True)
+        )
+
+    def test_limit_price_reference_must_stay_explicit(self) -> None:
+        self._reject(
+            lambda d: d["order_flow"]["event_schema"].__setitem__("limit_price", "drawn near the touch")
+        )
+
+    def test_zero_latency_control_cannot_reclaim_all_agents(self) -> None:
+        self._reject(
+            lambda d: d["controls"]["zero_latency_control"].__setitem__(
+                "description", "All agents at 0 ms one-way latency."
+            )
+        )
+
+    def test_zero_latency_control_cannot_claim_a_distinct_cell(self) -> None:
+        self._reject(lambda d: d["controls"]["zero_latency_control"].__setitem__("distinct_cell", True))
+
+    def test_unstable_threshold_cannot_be_loosened(self) -> None:
+        self._reject(
+            lambda d: d["negative_result_criteria"]["UNSTABLE"].__setitem__(
+                "implied_for_30_nonzero_pairs", "minority sign count at least 2"
+            )
+        )
+
+    def test_unstable_cannot_become_unconditional(self) -> None:
+        self._reject(
+            lambda d: d["negative_result_criteria"]["UNSTABLE"].__setitem__("conditional_on_non_null", False)
+        )
+
+    def test_attenuation_ratio_cannot_drift(self) -> None:
+        self._reject(
+            lambda d: d["negative_result_criteria"]["LATENCY_DRIVEN"].__setitem__("attenuation_ratio_max", 0.95)
+        )
+
+    def test_reporting_precedence_cannot_be_reordered(self) -> None:
+        self._reject(
+            lambda d: d["negative_result_criteria"].__setitem__(
+                "precedence",
+                ["DIFFERENCE_DETECTED", "NULL", "UNSTABLE", "LATENCY_DRIVEN", "ASSUMPTION_DRIVEN"],
+            )
+        )
+
+    def test_robustness_rationale_cannot_reclaim_fifo_degeneration(self) -> None:
+        self._reject(
+            lambda d: d["robustness_cell"].__setitem__("assumption_removed", "pro_rata_reduces_to_fifo")
+        )
+
+    def test_tracked_display_cannot_change_inside_the_robustness_cell(self) -> None:
+        self._reject(lambda d: d["robustness_cell"].__setitem__("tracked_display_lots_in_cell", 1))
+
+    def test_initial_ladder_cannot_drift(self) -> None:
+        self._reject(lambda d: d["initial_book_state"]["ladder"].__setitem__("bid_prices", [998, 997, 996, 995, 994]))
+
+    def test_initial_ladder_must_stay_consistent_with_the_mid(self) -> None:
+        self._reject(lambda d: d["initial_book_state"]["ladder"].__setitem__("best_bid", 990))
+
+    def test_queue_measures_cannot_become_comparable(self) -> None:
+        self._reject(
+            lambda d: _primary(d, "queue_and_wait")["comparability"].__setitem__(
+                "queue_measure", "directly comparable across mechanisms"
+            )
+        )
+
+    def test_pro_rata_under_allocation_examples_cannot_be_removed(self) -> None:
+        self._reject(lambda d: d["mechanisms"]["B"].__setitem__("under_allocation_worked_examples", []))
+
+    def test_min_allocation_cannot_become_a_guarantee(self) -> None:
+        self._reject(
+            lambda d: d["mechanisms"]["B"].__setitem__(
+                "min_allocation_semantics", "every resting order is guaranteed one lot"
+            )
+        )
 
     def test_missing_protocol_document_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

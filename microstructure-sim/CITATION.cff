@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "mechsim: a deterministic limit-order-book simulator for frozen two-mechanism allocation comparison"
+message: "If you use this software or its results, please cite it."
+type: software
+authors:
+  - family-names: Pathak
+    given-names: Manjeet
+repository-code: "https://github.com/IIITManjeet/FinanceMeta-Global"
+license: MIT
+version: 0.1.0
+date-released: "2026-09-19"
+keywords:
+  - market microstructure
+  - limit order book
+  - price-time priority
+  - pro-rata allocation
+  - reproducible research
+abstract: >-
+  A deterministic discrete-event limit order book simulator built to compare
+  exactly two allocation mechanisms, price-time priority and pro-rata, under an
+  identical state-independent synthetic order-flow realization and a frozen
+  latency model. The order-flow generator is independent of book state so that
+  both mechanism arms provably consume a byte-identical event stream, making the
+  identity control verifiable by hash rather than asserted. Synthetic simulation
+  only; it establishes no real-market performance, realized return, predictive
+  alpha, market-quality superiority or exchange deployability.

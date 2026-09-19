@@ -1,0 +1,207 @@
+"""Decision-rule machinery: summaries, paired bootstrap, sign test, verdicts."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import numpy as np
+import pytest
+
+from mechsim.analysis import (
+    ASSUMPTION_DRIVEN,
+    DIFFERENCE,
+    LATENCY_DRIVEN,
+    NULL,
+    PRECEDENCE,
+    UNSTABLE,
+    bca_interval,
+    decide,
+    distribution_summary,
+    paired_differences,
+    sign_test_p,
+)
+
+
+def cfg(ratio_max: float = 0.5):
+    return SimpleNamespace(
+        matched_baseline_ms=5,
+        bootstrap_resamples=600,
+        bootstrap_seed=424242,
+        attenuation_ratio_max=ratio_max,
+        unstable_sign_test_alpha=0.05,
+    )
+
+
+def records(values: dict[tuple[int, str, str], list[float]]) -> list[dict]:
+    """values[(latency, cell, mechanism)] -> per-seed decision-metric values."""
+    out = []
+    for (latency, cell, mech), series in values.items():
+        for seed, v in enumerate(series):
+            out.append({
+                "seed": seed, "latency_ms": latency, "cell": cell,
+                "mechanism": mech, "implementation_shortfall_bps": v,
+            })
+    return out
+
+
+# ---------------------------------------------------------------- summaries
+
+def test_distribution_summary_reports_more_than_the_mean() -> None:
+    summary = distribution_summary([1.0, 2.0, 3.0, 4.0])
+    for key in ("median", "iqr", "p5", "p95"):
+        assert summary[key] is not None
+
+
+def test_distribution_summary_counts_undefined_values() -> None:
+    summary = distribution_summary([1.0, None, 3.0, None])
+    assert (summary["n"], summary["n_undefined"]) == (2, 2)
+
+
+def test_distribution_summary_of_all_undefined_is_not_an_error() -> None:
+    assert distribution_summary([None, None])["mean"] is None
+
+
+# ------------------------------------------------------------------- pairing
+
+def test_paired_differences_pairs_by_seed() -> None:
+    r = records({(5, "main", "FIFO"): [1.0, 2.0], (5, "main", "PRO_RATA"): [4.0, 3.0]})
+    assert list(paired_differences(r, 5, "main", "implementation_shortfall_bps")) == [3.0, 1.0]
+
+
+def test_incomplete_pair_fails_closed() -> None:
+    """The metric is defined for every retained run, so a gap is a bug."""
+    r = records({(5, "main", "FIFO"): [1.0, 2.0], (5, "main", "PRO_RATA"): [4.0]})
+    with pytest.raises(ValueError, match="incomplete seed pair"):
+        paired_differences(r, 5, "main", "implementation_shortfall_bps")
+
+
+def test_undefined_decision_metric_fails_closed() -> None:
+    r = records({(5, "main", "FIFO"): [1.0, 2.0], (5, "main", "PRO_RATA"): [4.0, None]})
+    with pytest.raises(ValueError):
+        paired_differences(r, 5, "main", "implementation_shortfall_bps")
+
+
+def test_paired_differences_ignores_other_cells_and_latencies() -> None:
+    r = records({(0, "main", "FIFO"): [1.0], (0, "main", "PRO_RATA"): [9.0]})
+    assert paired_differences(r, 5, "main", "implementation_shortfall_bps").size == 0
+
+
+# ----------------------------------------------------------------- sign test
+
+def test_single_opposite_seed_does_not_look_unstable() -> None:
+    """The reviewer's objection: one noisy seed must not trigger UNSTABLE."""
+    assert sign_test_p(29, 1) < 0.05
+
+
+def test_nine_of_thirty_is_still_consistent() -> None:
+    assert sign_test_p(21, 9) < 0.05
+
+
+def test_ten_of_thirty_is_unstable() -> None:
+    assert sign_test_p(20, 10) > 0.05
+
+
+def test_even_split_is_maximally_unstable() -> None:
+    assert sign_test_p(15, 15) == pytest.approx(1.0)
+
+
+def test_sign_test_is_symmetric_and_handles_empty() -> None:
+    assert sign_test_p(20, 10) == sign_test_p(10, 20)
+    assert sign_test_p(0, 0) == 1.0
+
+
+# ----------------------------------------------------------------- bootstrap
+
+def test_bca_interval_on_zero_centred_noise_contains_zero() -> None:
+    diffs = np.random.default_rng(0).normal(0.0, 1.0, size=40)
+    assert bca_interval(diffs, resamples=800, seed=424242).contains_zero
+
+
+def test_bca_interval_on_a_large_shift_excludes_zero() -> None:
+    diffs = np.random.default_rng(1).normal(25.0, 1.0, size=40)
+    assert not bca_interval(diffs, resamples=800, seed=424242).contains_zero
+
+
+def test_bca_interval_is_deterministic_for_a_fixed_seed() -> None:
+    diffs = np.linspace(-1.0, 3.0, 30)
+    a = bca_interval(diffs, resamples=500, seed=424242)
+    b = bca_interval(diffs, resamples=500, seed=424242)
+    assert (a.low, a.high, a.point) == (b.low, b.high, b.point)
+
+
+# ------------------------------------------------------------------ verdicts
+
+def test_null_when_the_interval_straddles_zero() -> None:
+    noise = list(np.random.default_rng(3).normal(0.0, 1.0, size=30))
+    r = records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): noise})
+    assert decide(r, cfg())["verdict"] == NULL
+
+
+def test_null_suppresses_the_other_labels() -> None:
+    """A NULL result must never also be a stop condition."""
+    alternating = [1.0 if i % 2 else -1.0 for i in range(30)]
+    r = records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): alternating})
+    out = decide(r, cfg())
+    assert out["verdict"] == NULL
+    assert UNSTABLE not in out["criteria_met"]
+
+
+def test_difference_detected_when_effect_is_large_and_consistent() -> None:
+    shifted = list(np.random.default_rng(4).normal(50.0, 1.0, size=30))
+    r = records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): shifted})
+    assert decide(r, cfg())["verdict"] == DIFFERENCE
+
+
+def test_latency_driven_requires_both_clauses() -> None:
+    big = list(np.random.default_rng(5).normal(50.0, 1.0, size=30))
+    tiny = list(np.random.default_rng(6).normal(0.0, 1.0, size=30))
+    r = records({
+        (5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): big,
+        (0, "main", "FIFO"): [0.0] * 30, (0, "main", "PRO_RATA"): tiny,
+    })
+    assert LATENCY_DRIVEN in decide(r, cfg())["criteria_met"]
+
+
+def test_latency_driven_does_not_fire_when_the_effect_persists() -> None:
+    big = list(np.random.default_rng(7).normal(50.0, 1.0, size=30))
+    still_big = list(np.random.default_rng(8).normal(48.0, 1.0, size=30))
+    r = records({
+        (5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): big,
+        (0, "main", "FIFO"): [0.0] * 30, (0, "main", "PRO_RATA"): still_big,
+    })
+    assert LATENCY_DRIVEN not in decide(r, cfg())["criteria_met"]
+
+
+def test_assumption_driven_uses_the_robustness_cell() -> None:
+    big = list(np.random.default_rng(9).normal(50.0, 1.0, size=30))
+    tiny = list(np.random.default_rng(10).normal(0.0, 1.0, size=30))
+    r = records({
+        (5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): big,
+        (5, "robustness", "FIFO"): [0.0] * 30, (5, "robustness", "PRO_RATA"): tiny,
+    })
+    assert ASSUMPTION_DRIVEN in decide(r, cfg())["criteria_met"]
+
+
+def test_overlapping_labels_are_all_reported_and_precedence_decides() -> None:
+    big = list(np.random.default_rng(11).normal(50.0, 1.0, size=30))
+    tiny_a = list(np.random.default_rng(12).normal(0.0, 1.0, size=30))
+    tiny_b = list(np.random.default_rng(13).normal(0.0, 1.0, size=30))
+    r = records({
+        (5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): big,
+        (0, "main", "FIFO"): [0.0] * 30, (0, "main", "PRO_RATA"): tiny_a,
+        (5, "robustness", "FIFO"): [0.0] * 30, (5, "robustness", "PRO_RATA"): tiny_b,
+    })
+    out = decide(r, cfg())
+    assert {LATENCY_DRIVEN, ASSUMPTION_DRIVEN}.issubset(set(out["criteria_met"]))
+    assert out["verdict"] == LATENCY_DRIVEN
+
+
+def test_precedence_order_is_the_frozen_one() -> None:
+    assert PRECEDENCE == [NULL, UNSTABLE, LATENCY_DRIVEN, ASSUMPTION_DRIVEN, DIFFERENCE]
+
+
+def test_decision_reports_pairing_and_sign_counts() -> None:
+    shifted = list(np.random.default_rng(14).normal(50.0, 1.0, size=30))
+    out = decide(records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): shifted}), cfg())
+    assert out["pairing"] == "paired_by_seed"
+    assert out["sign_counts"]["positive"] + out["sign_counts"]["negative"] == 30

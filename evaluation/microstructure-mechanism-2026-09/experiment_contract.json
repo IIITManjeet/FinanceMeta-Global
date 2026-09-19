@@ -1,0 +1,193 @@
+{
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v1",
+  "status": "FROZEN_PRE_RESULT",
+  "frozen_date": "2026-09-19",
+  "authority": {
+    "evidence_gate_issue": "build-the-future-11/FinanceMeta-Global#51",
+    "parent_issue": "build-the-future-11/FinanceMeta-Global#47",
+    "builder": "Manjeet Pathak",
+    "repository_url": null,
+    "freeze_commit_sha": null,
+    "freeze_tag": null
+  },
+  "freeze": {
+    "results_inspected": false,
+    "simulator_implemented_at_freeze": false,
+    "parameters_may_change_after_results": false,
+    "third_mechanism_may_be_added_after_results": false,
+    "amendments": []
+  },
+  "research_question": "Under an identical prespecified synthetic order-flow realization and latency model, how do price-time priority and pro-rata allocation differ in execution quality and queue outcomes for a tracked passive parent order?",
+  "hypotheses": {
+    "null": "Allocation mechanism has no effect on the decision metric at the matched-latency baseline.",
+    "direction_predicted": false
+  },
+  "mechanisms": {
+    "count": 2,
+    "A": {
+      "id": "FIFO",
+      "name": "price-time priority",
+      "allocation": "resting orders filled in (price, arrival_sequence) order",
+      "tie_break": "strict arrival_sequence, no randomization",
+      "residual": "not applicable"
+    },
+    "B": {
+      "id": "PRO_RATA",
+      "name": "pro-rata",
+      "allocation": "proportional to resting size at the best price",
+      "rounding": "largest_remainder",
+      "tie_break": "arrival_sequence",
+      "min_allocation_lots": 1,
+      "residual": "swept FIFO by arrival_sequence"
+    },
+    "held_constant": [
+      "book format",
+      "order flow realization",
+      "latency model",
+      "participant assumptions",
+      "fee schedule",
+      "initial book state"
+    ]
+  },
+  "order_flow": {
+    "generator": "zero_intelligence_poisson",
+    "state_independent": true,
+    "state_independence_rationale": "A state-independent exogenous stream is required so the identity control is provable by hash equality across mechanisms.",
+    "limit_order_rate_per_level_per_sec": 1.2,
+    "levels_from_opposite_best": 5,
+    "market_order_rate_per_side_per_sec": 0.9,
+    "cancel_rate_per_resting_lot_per_sec": 0.14,
+    "order_size_distribution_lots": {"1": 0.5, "2": 0.25, "5": 0.15, "10": 0.1},
+    "tick_size": 1,
+    "initial_mid_price": 1000
+  },
+  "participants": {
+    "background": "non-adaptive zero-intelligence agents; sizes drawn from the frozen distribution; no strategic response to mechanism",
+    "tracked_agent": {
+      "side": "buy",
+      "parent_quantity_lots": 500,
+      "style": "passive limit at best bid, replenished",
+      "display_lots": 10,
+      "reprice_rule": "cancel and replace when best bid moves",
+      "benchmark": "arrival mid price"
+    },
+    "declared_limitation": "Zero-intelligence agents do not inflate order size under pro-rata. The simulator therefore cannot reproduce strategic size inflation, which is the principal real-world behavioural consequence of pro-rata allocation."
+  },
+  "latency": {
+    "model": "per-agent constant one-way latency, no jitter",
+    "tracked_agent_one_way_ms": [0, 1, 2, 5, 10, 25, 50, 100],
+    "background_one_way_ms": 5,
+    "exchange_processing_ms": 0,
+    "matched_baseline_ms": 5
+  },
+  "seed_policy": {
+    "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+    "seed_count": 30,
+    "failed_seeds_may_be_discarded": false,
+    "bootstrap_seed": 424242
+  },
+  "initial_book_state": {
+    "levels_per_side": 5,
+    "lots_per_level": 20,
+    "mid_price": 1000,
+    "warm_up_events_discarded": 10000
+  },
+  "horizon": {
+    "events_per_run_after_warm_up": 100000
+  },
+  "fees": {
+    "maker_bps": 0.0,
+    "taker_bps": 0.0,
+    "rationale": "Maker-taker pricing interacts strongly with pro-rata allocation and would confound the mechanism comparison. Zero fees are frozen deliberately and are a declared limitation."
+  },
+  "metrics": {
+    "primary": [
+      {"id": "fill_probability", "definition": "filled_lots / parent_quantity_lots", "direction": "higher_is_better"},
+      {"id": "implementation_shortfall_bps", "definition": "1e4 * (size_weighted_average_execution_price - arrival_mid) / arrival_mid", "direction": "lower_is_better"},
+      {"id": "spread_at_execution_ticks", "definition": "size-weighted mean quoted spread at each fill", "direction": "lower_is_better"},
+      {"id": "queue_and_wait", "definition": "time_to_first_fill_ms and time_to_full_fill_ms; queue measure is volume_ahead_at_best under FIFO and size_share_at_best under PRO_RATA", "direction": "lower_is_better"},
+      {"id": "price_impact_bps", "definition": "1e4 * (mid_at_horizon_end - arrival_mid) / arrival_mid", "direction": "lower_is_better"}
+    ],
+    "all_primary_reported_every_run": true,
+    "decision_metric": {
+      "id": "implementation_shortfall_bps",
+      "direction": "lower_is_better",
+      "compared_at_latency_ms": 5,
+      "statistic": "mean difference PRO_RATA minus FIFO across seeds",
+      "interval": "BCa bootstrap 95 percent confidence interval",
+      "bootstrap_resamples": 10000
+    },
+    "distributional_summaries_required": ["median", "iqr", "p5", "p95"],
+    "means_only_reporting_permitted": false
+  },
+  "controls": {
+    "identity_run": {
+      "description": "For each seed, the serialized exogenous event stream must be byte-identical across both mechanisms.",
+      "verification": "sha256 equality of the serialized pre-latency event stream"
+    },
+    "zero_latency_control": {
+      "description": "All agents at 0 ms one-way latency.",
+      "included_in_grid": true
+    },
+    "analytic_sanity_case": {
+      "description": "One aggressive market order of 6 lots meets two resting orders at the same price: order X of 2 lots (arrival_sequence 1) and order Y of 10 lots (arrival_sequence 2).",
+      "expected_fifo_allocation_lots": {"X": 2, "Y": 4},
+      "expected_pro_rata_allocation_lots": {"X": 1, "Y": 5}
+    },
+    "deterministic_replay": {
+      "description": "Re-running from (seed, config) must produce a byte-identical per-run output record.",
+      "verification": "sha256 equality of the per-run JSON record"
+    }
+  },
+  "robustness_cell": {
+    "count": 1,
+    "id": "constant_order_size",
+    "change": "order_size_distribution_lots replaced by a constant 1 lot",
+    "purpose": "Removes size heterogeneity, under which pro-rata allocation degenerates toward price-time priority.",
+    "applies_at_latency_ms": 5
+  },
+  "run_matrix": {
+    "main": {"mechanisms": 2, "latency_points": 8, "seeds": 30, "runs": 480},
+    "robustness": {"mechanisms": 2, "latency_points": 1, "seeds": 30, "runs": 60},
+    "total_runs": 540
+  },
+  "exclusions_and_failures": {
+    "post_hoc_exclusion_permitted": false,
+    "empty_book_runs_retained": true,
+    "timeout_runs_retained": true,
+    "degenerate_runs_retained": true,
+    "minimum_retained_failure_runs_reported": 3
+  },
+  "negative_result_criteria": {
+    "NULL": "The BCa 95 percent confidence interval for the decision-metric difference contains zero at the matched-latency baseline.",
+    "UNSTABLE": "The sign of the decision-metric difference flips across the frozen seeds.",
+    "LATENCY_DRIVEN": "Any difference present at the matched baseline vanishes in the zero-latency control.",
+    "ASSUMPTION_DRIVEN": "Any difference collapses in the constant_order_size robustness cell.",
+    "negative_result_is_a_valid_completion": true
+  },
+  "reproduction": {
+    "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
+    "environment_lock": null,
+    "source_sha": null
+  },
+  "reporting": {
+    "required": [
+      "all five primary metrics for every cell",
+      "distributional summaries, not means alone",
+      "mechanism comparison table",
+      "latency sensitivity plot",
+      "count and description of retained degenerate runs",
+      "at least three retained failure or edge-case runs"
+    ],
+    "prohibited": [
+      "real-market alpha",
+      "live execution performance",
+      "universal market-quality superiority",
+      "investor benefit",
+      "exchange deployability from simulation alone",
+      "any claim that either mechanism is a superior market design",
+      "cross-reference to unrelated prior auction or mechanism-design work by the builder"
+    ]
+  },
+  "claim_boundary": "Synthetic simulation only. Conclusions are valid solely for the two frozen mechanisms under this frozen order-flow process, participant assumptions, latency model and fee schedule. This is not evidence of real-market performance, realized returns, predictive alpha, profitability, market-quality superiority, or exchange deployability."
+}

@@ -10,6 +10,7 @@ WORKFLOW_DIR = ROOT / ".github" / "workflows"
 ENGINEERING_WORKFLOWS = (
     "five-foundations-resource.yml",
     "fmp-buildathon-contract.yml",
+    "microstructure-mechanism-contract.yml",
     "nov1-stock-pitch-position.yml",
     "registry-validation.yml",
     "september-evidence-ledger.yml",

@@ -1,0 +1,86 @@
+name: Microstructure mechanism contract
+
+on:
+  pull_request:
+    paths:
+      - 'evaluation/microstructure-mechanism-2026-09/**'
+      - 'scripts/validate_microstructure_contract.py'
+      - 'tests/test_validate_microstructure_contract.py'
+      - '.github/workflows/microstructure-mechanism-contract.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'evaluation/microstructure-mechanism-2026-09/**'
+      - 'scripts/validate_microstructure_contract.py'
+      - 'tests/test_validate_microstructure_contract.py'
+      - '.github/workflows/microstructure-mechanism-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: microstructure-mechanism-contract-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  PYTHONUTF8: '1'
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact source binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+
+      - name: Validate microstructure mechanism contract
+        run: python scripts/validate_microstructure_contract.py
+
+      - name: Run microstructure contract regression tests
+        run: python -m unittest tests/test_validate_microstructure_contract.py -v
+
+      - name: Record immutable contract digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf 'source_commit=%s\n' "${SOURCE_SHA}"
+            printf 'workflow_commit=%s\n' "$GITHUB_SHA"
+            printf 'workflow_ref=%s\n' "$GITHUB_REF"
+            printf 'runner_image=%s\n' "${ImageOS:-ubuntu24}"
+            printf 'python=%s\n' "$(python --version 2>&1)"
+            printf 'pip=%s\n' "$(python -m pip --version)"
+          } > microstructure-mechanism-contract-digests.txt
+          sha256sum \
+            evaluation/microstructure-mechanism-2026-09/experiment_contract.json \
+            evaluation/microstructure-mechanism-2026-09/PROTOCOL.md \
+            evaluation/microstructure-mechanism-2026-09/brief.md \
+            scripts/validate_microstructure_contract.py \
+            tests/test_validate_microstructure_contract.py \
+            >> microstructure-mechanism-contract-digests.txt
+          cat microstructure-mechanism-contract-digests.txt
+
+      - name: Upload microstructure contract evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: microstructure-mechanism-contract-${{ env.SOURCE_SHA }}
+          path: microstructure-mechanism-contract-digests.txt
+          if-no-files-found: error
+          retention-days: 30

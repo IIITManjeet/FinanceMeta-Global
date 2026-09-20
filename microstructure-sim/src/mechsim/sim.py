@@ -117,8 +117,25 @@ def run_once(
     latency_ms: int,
     cell: str = "main",
     size_distribution: dict[str, float] | None = None,
+    allow_frozen_seed: bool = False,
 ) -> RunResult:
-    """Run one cell and return its record."""
+    """Run one cell and return its record.
+
+    Refuses a development or confirmation seed unless the caller opts in. This
+    is a runtime guard rather than a lint rule: the previous protection was a
+    static scan of test modules, which an aliased constant, a loop variable or a
+    helper call walks straight past. Only the authorised confirmatory run passes
+    allow_frozen_seed=True.
+
+    generate_stream is deliberately not guarded: it emits a deterministic intent
+    stream and no outcome, and the published per-seed identity digests are
+    produced from it.
+    """
+    if not allow_frozen_seed and seed in set(cfg.seeds) | set(cfg.confirmation_seeds):
+        raise ValueError(
+            f"refusing to run frozen seed {seed} without allow_frozen_seed=True: this would "
+            "produce an outcome on a development or confirmation seed"
+        )
     run_cfg = cfg
     if size_distribution is not None:
         run_cfg = Config(**{**cfg.__dict__, "size_distribution": size_distribution})

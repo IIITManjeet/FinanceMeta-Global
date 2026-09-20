@@ -42,6 +42,7 @@ class Config:
     latency_grid: tuple[int, ...]
     background_latency_ms: int
     matched_baseline_ms: int
+    robustness_latency_ms: int
     # seeds
     seeds: tuple[int, ...]
     confirmation_seeds: tuple[int, ...]
@@ -92,6 +93,7 @@ def load_config(contract_path: Path | str | None = None) -> Config:
         latency_grid=tuple(int(x) for x in latency["tracked_agent_one_way_ms"]),
         background_latency_ms=int(latency["background_one_way_ms"]),
         matched_baseline_ms=int(latency["matched_baseline_ms"]),
+        robustness_latency_ms=int(data["robustness_cell"]["applies_at_latency_ms"]),
         seeds=tuple(int(s) for s in seeds["seeds"]),
         confirmation_seeds=tuple(int(s) for s in seeds["confirmation_seeds"]),
         bootstrap_seed=int(seeds["bootstrap_seed"]),

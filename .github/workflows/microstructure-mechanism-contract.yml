@@ -6,6 +6,8 @@ on:
       - 'evaluation/microstructure-mechanism-2026-09/**'
       - 'scripts/validate_microstructure_contract.py'
       - 'tests/test_validate_microstructure_contract.py'
+      - 'microstructure-sim/requirements.lock.txt'
+      - '.gitattributes'
       - '.github/workflows/microstructure-mechanism-contract.yml'
   push:
     branches:
@@ -15,6 +17,8 @@ on:
       - 'evaluation/microstructure-mechanism-2026-09/**'
       - 'scripts/validate_microstructure_contract.py'
       - 'tests/test_validate_microstructure_contract.py'
+      - 'microstructure-sim/requirements.lock.txt'
+      - '.gitattributes'
       - '.github/workflows/microstructure-mechanism-contract.yml'
   workflow_dispatch:
 

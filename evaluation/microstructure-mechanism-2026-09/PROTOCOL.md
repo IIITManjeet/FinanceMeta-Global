@@ -1,7 +1,7 @@
 # Market microstructure sprint: frozen protocol (one page)
 
-**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3` (supersedes v1, v2) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
-**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v3`
+**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4` (supersedes v1, v2, v3) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
+**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v4`
 Machine-readable detail and the append-only amendment log: `experiment_contract.json`
 
 ## Question

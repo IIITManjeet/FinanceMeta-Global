@@ -1,6 +1,6 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3",
-  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3",
   "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
   "amended_date": "2026-09-20",
@@ -11,13 +11,14 @@
     "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
     "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
     "pull_request": "build-the-future-11/FinanceMeta-Global#57",
-    "freeze_tag": "microstructure-freeze-v3",
+    "freeze_tag": "microstructure-freeze-v4",
     "superseded_tags": [
       "microstructure-freeze-v1",
-      "microstructure-freeze-v2"
+      "microstructure-freeze-v2",
+      "microstructure-freeze-v3"
     ],
     "freeze_commit_sha": null,
-    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v3 (git rev-parse microstructure-freeze-v3^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1 and v2 identify superseded documents."
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v4 (git rev-parse microstructure-freeze-v4^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1, v2 and v3 identify superseded documents."
   },
   "freeze": {
     "results_inspected": true,
@@ -290,6 +291,76 @@
           "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
         },
         "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A20",
+        "section": "/reproduction/environment_lock",
+        "old_rule": "The lock pinned versions with hashes but permitted an sdist fallback for a pure-python dependency and did not cover the build backend, and the package README documented an unpinned install.",
+        "new_rule": "Every pin carries a wheel hash so --require-hashes cannot fall back to an unpinned source build; setuptools and wheel are pinned and hashed; installation uses --no-build-isolation; wheel coverage spans manylinux x86_64, macOS arm64, macOS x86_64 and win_amd64.",
+        "reason": "A lock that silently falls back to building through an unhashed PEP 517 environment is not a lock. The reviewer asked for exact package versions and hashes or an equivalently reproducible lock.",
+        "timestamp_utc": "2026-09-20T13:16:30Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4, 5 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "547b103"
+      },
+      {
+        "id": "A21",
+        "section": "/reproduction/environment_lock/runtime_identity",
+        "old_rule": "The runtime was recorded after the run by platform.python_version().",
+        "new_rule": "The confirmatory run refuses to start unless the interpreter matches the frozen runtime identity and the lock file hashes to the digest recorded in the contract. Both are checked before any cell executes.",
+        "reason": "Recording the runtime afterwards is a receipt, which is the exact distinction the reviewer drew when rejecting the post-install pip freeze.",
+        "timestamp_utc": "2026-09-20T13:16:30Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4, 5 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "547b103"
+      },
+      {
+        "id": "A22",
+        "section": "/metrics/decision_metric/seed_pairs_required_complete",
+        "old_rule": "Completeness was enforced as a count of paired differences per cell.",
+        "new_rule": "Completeness is enforced as seed identity: every cell used by the decision rule must carry exactly the confirmation seed set, with no duplicates and no non-finite values.",
+        "reason": "A count-only gate accepted thirty records from entirely unrelated seeds and returned a clean verdict, so the pre-registered seed set was not actually binding on the statistic.",
+        "timestamp_utc": "2026-09-20T13:16:30Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4, 5 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "547b103"
+      },
+      {
+        "id": "A23",
+        "section": "/robustness_cell/applies_at_latency_ms",
+        "old_rule": "The run matrix assumed the robustness cell ran at the matched baseline, which coincided with the contract value by accident.",
+        "new_rule": "The run matrix reads robustness_cell.applies_at_latency_ms from the contract.",
+        "reason": "The field was declared in the contract and read by nothing, so a future change to it would have been silently ignored.",
+        "timestamp_utc": "2026-09-20T13:16:30Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4, 5 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "547b103"
+      },
+      {
+        "id": "A24",
+        "section": "/freeze/exposure/scope",
+        "old_rule": "runs_executed reported 108 without stating that it covered only the quick-path channel, and the test-suite channel carried no count.",
+        "new_rule": "The test-suite channel records 23 frozen-seed call sites executed across 2 CI runs, and runs_executed is explicitly scoped to the quick path.",
+        "reason": "A count that silently omits a channel is the pattern the reviewer has objected to before. The figure is knowable, so it is stated.",
+        "timestamp_utc": "2026-09-20T13:16:30Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4, 5 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "547b103"
       }
     ],
     "exposure": {
@@ -341,9 +412,16 @@
             ],
             "scale": "200-4000 events, paired arms at the matched baseline and other latencies",
             "verdict_printed": false,
-            "note": "Found during adversarial self-audit, not by the reviewer. The suite executed paired FIFO/PRO_RATA runs on frozen development seeds on every CI push. No verdict was computed and no metric value was printed unless a test failed."
+            "note": "Found during adversarial self-audit, not by the reviewer. 23 static frozen-seed call sites in the test suite, executed in 2 CI runs (678cb1a and cc7627c). The suite ran paired FIFO/PRO_RATA runs on frozen development seeds on every CI push. No verdict was computed and no metric value was printed, because no test failed; had one failed, pytest assertion rewriting would have printed metric values into a public log. 547b103 onward is clean.",
+            "frozen_seed_call_sites": 23,
+            "ci_runs_that_executed_them": 2,
+            "ci_runs": [
+              "678cb1a",
+              "cc7627c"
+            ]
           }
-        ]
+        ],
+        "runs_executed_note": "runs_executed=108 counts the quick-path channel only. The test-suite channel is counted separately under channels[1] as call sites times CI runs."
       },
       "evidence": {
         "workflow_run": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869",
@@ -371,7 +449,8 @@
         "defect": "The tracked display order was never replenished after a partial fill, so displayed size decayed below display_lots and the decay was mechanism-dependent.",
         "measured": "Mean displayed size 7.72 lots under FIFO and 6.42 under pro-rata against a frozen display of 10.",
         "fix": "Cancel and replace to full display size when resting quantity falls below target, which is the correct exchange semantics for a top-up.",
-        "verified": "Mean displayed size 9.15 and 8.81 after the fix; the residual shortfall is the latency window between a fill and the replacement landing."
+        "verified": "Mean displayed size 9.15 and 8.81 after the fix; the residual shortfall is the latency window between a fill and the replacement landing.",
+        "residual_asymmetry": "The fix equalises displayed size at placement but not replacement frequency: pro-rata cancel-replaces the tracked order about 42 percent more often than FIFO (mean 120.5 versus 84.75 placements per run over 8 sentinel seeds, pro-rata higher in 8 of 8). Each episode resets queue position and costs a latency window, so time-to-fill comparisons inherit this. This is plausibly inherent to the mechanisms rather than a defect, and it is disclosed rather than corrected because correcting it would change the participant model."
       },
       {
         "id": "D3",
@@ -388,6 +467,39 @@
         "defect": "The smoke path and the automated test suite executed frozen development seeds while the smoke log asserted that no frozen seed had been executed.",
         "fix": "Controls take a seeds argument defaulting to sentinel seeds and never read cfg.seeds; all tests moved to sentinel space; a meta-test parses every test module and fails if a frozen seed reaches run_once or generate_stream.",
         "verified": "Instrumented smoke run: 10 calls, 0 on frozen seeds."
+      },
+      {
+        "id": "D5",
+        "found_by": "adversarial self-audit, second round",
+        "severity": "invalidating",
+        "defect": "The decision rule checked the number of paired differences but never their seed identity. Thirty records carrying seeds from no frozen set satisfied the completeness gate and produced a clean verdict.",
+        "measured": "Synthetic records on seeds 900000500-900000529 returned a LATENCY_DRIVEN verdict with a point estimate of 4.0 and no error.",
+        "fix": "paired_differences takes the expected seed set and raises on any mismatch; decide() passes the confirmation seeds to every cell it uses.",
+        "verified": "Regression test asserting the wrong seed set is refused."
+      },
+      {
+        "id": "D6",
+        "found_by": "adversarial self-audit, second round",
+        "severity": "major",
+        "defect": "Duplicate records for the same (seed, mechanism, cell, latency) were silently collapsed, last write wins, and non-finite metric values reached the bootstrap where the only protection was an internal numpy percentile bounds check rather than a check of our own.",
+        "fix": "Duplicates raise. Non-finite differences raise with our own message before any bootstrap runs.",
+        "verified": "Regression tests for a duplicate record, a NaN difference and an infinite difference."
+      },
+      {
+        "id": "D7",
+        "found_by": "adversarial self-audit, second round",
+        "severity": "major",
+        "defect": "The environment lock did not actually force hashed installs. colorama carried only an sdist hash, so pip fell back to building it through an unpinned PEP 517 environment, and the package install itself fetched the build backend fresh and unhashed on every invocation. The package README still documented the old unpinned install, contradicting PROTOCOL.md. No macOS or arm64 wheel hashes existed, so a reviewer on Apple Silicon could not complete a hash-enforced install at all.",
+        "fix": "Every entry now carries a wheel hash; setuptools and wheel are pinned and hashed; the install uses --no-build-isolation; wheel coverage extends to macOS arm64, macOS x86_64, manylinux x86_64 and win_amd64; the README matches PROTOCOL.md.",
+        "verified": "pip install --require-hashes --dry-run resolves cleanly, and the lock generator asserts a wheel hash exists for every pin."
+      },
+      {
+        "id": "D8",
+        "found_by": "adversarial self-audit, second round",
+        "severity": "major",
+        "defect": "Protection against executing a frozen seed rested on a static scan of test modules, which an aliased constant, a loop variable, a computed value, a helper call, a renamed function or a conftest walks straight past. The scanned functions had no runtime guard of their own. The scanner also treated every integer argument as a seed, so latency_ms=5 read as development seed 5.",
+        "fix": "run_once refuses a development or confirmation seed unless the caller passes allow_frozen_seed=True, which only the authorised confirmatory run does. The static scan is retained as a backstop and now inspects only the seed position.",
+        "verified": "Runtime refusal tested for both frozen sets; authorised path tested to still work."
       }
     ]
   },
@@ -817,12 +929,21 @@
     "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
     "environment_lock": {
       "file": "microstructure-sim/requirements.lock.txt",
-      "sha256": "c84c7a438458d86077a4a71dfd394860118f964ba8775237e2e328527863e802",
-      "install_command": "python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt",
+      "sha256": "90a9e87e1dac961ca55dbc29bd3ca22fca5b6e4b9a8581dc6b9998f57ccfb88c",
+      "install_command": "python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt && python -m pip install -e microstructure-sim --no-deps --no-build-isolation",
       "runtime_identity": "CPython 3.12",
       "hash_enforced": true,
       "frozen_before_confirmatory_run": true,
-      "line_endings": "lf, pinned by .gitattributes"
+      "line_endings": "lf, pinned by .gitattributes",
+      "build_backend_pinned": true,
+      "sdist_fallback_possible": false,
+      "verified_before_run": "reproduce refuses to start unless the interpreter and this digest both match",
+      "wheel_platforms": [
+        "manylinux_x86_64",
+        "macosx_arm64",
+        "macosx_x86_64",
+        "win_amd64"
+      ]
     },
     "source_sha": "see authority.freeze_identity_rule"
   },

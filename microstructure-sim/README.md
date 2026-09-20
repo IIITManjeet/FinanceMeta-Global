@@ -1,6 +1,6 @@
 # mechsim: mechanism allocation under frozen order flow
 
-**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v3, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
+**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v4, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
 
 A deterministic discrete-event limit-order-book simulator built for one bounded
 question: under an identical synthetic order-flow realization and latency model,
@@ -46,10 +46,15 @@ Three constraints shape the design:
 ## Install
 
 ```bash
-python -m pip install -e 'microstructure-sim[dev]'
+python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt
+python -m pip install -e microstructure-sim --no-deps --no-build-isolation
 ```
 
-Requires Python ≥ 3.11 and NumPy 2.x. On Windows set `PYTHONUTF8=1`.
+Both lines matter. The lock pins exact versions with hashes on CPython 3.12,
+including the build backend, and `--no-build-isolation` stops pip fetching that
+backend fresh and unhashed outside the lock. `reproduce` refuses to run under any
+other interpreter and verifies this lock against the digest recorded in the
+contract before a single cell executes. On Windows set `PYTHONUTF8=1`.
 
 ## Reproduce
 
@@ -85,8 +90,8 @@ verdict; it is gone, and the exposure is recorded in the contract and in
 Other entry points:
 
 ```bash
-python -m mechsim.cli verify        # the four frozen controls only
-python -m mechsim.cli run --mechanism PRO_RATA --seed 0 --latency-ms 5
+python -m mechsim.cli verify        # the four frozen controls, sentinel seeds only
+python -m mechsim.cli run --mechanism PRO_RATA --seed 900000001 --latency-ms 5
 ```
 
 ## Tests
@@ -95,15 +100,17 @@ python -m mechsim.cli run --mechanism PRO_RATA --seed 0 --latency-ms 5
 python -m pytest microstructure-sim -q
 ```
 
-99 tests covering allocation semantics for both mechanisms, the frozen analytic
+106 tests covering allocation semantics for both mechanisms, the frozen analytic
 and under-allocation cases, book mechanics, the intent-stream schema, the
 identity and determinism controls, Perold shortfall over the whole parent order,
 the paired bootstrap, sign test and verdict precedence, and guards that keep the
-smoke path outcome-blind.
+smoke path outcome-blind. `run_once` refuses a development or confirmation seed
+at runtime unless the caller explicitly opts in, which only the authorised
+confirmatory run does, so the CLI example above uses a sentinel seed.
 
 ## Declared limitations
 
-These bound any result. All three were written down before the run, not found
+These bound any result. All of them were written down before the run, not found
 afterwards:
 
 - **No strategic size inflation.** Zero-intelligence agents do not adjust order
@@ -114,7 +121,15 @@ afterwards:
 - **Background latency is declarative.** Zero-intelligence agents do not react,
   so only the tracked agent's latency has a dynamic effect. The zero-latency
   control is therefore the tracked-agent-0 ms cell of the main grid, not a
-  separate cell. This bounds what the latency sweep can demonstrate.
+  separate cell, and **no latency parity is claimed at any cell**. This bounds
+  what the latency sweep can demonstrate.
+- **Replenishment churn is asymmetric.** The tracked order is topped up to full
+  display after a partial fill, but pro-rata triggers that top-up about 42% more
+  often than FIFO, and each episode resets queue position. Disclosed rather than
+  engineered away, because it is plausibly inherent to the mechanisms.
+- **The robustness cell moves depth as well as size.** Constant 1-lot background
+  orders also change aggregate depth and per-order lifetime, so
+  `ASSUMPTION_DRIVEN` indicates sensitivity to that joint change.
 
 Contract details that were under-specified at freeze time are resolved in the
 frozen contract itself and in the append-only amendment log inside

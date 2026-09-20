@@ -9,8 +9,8 @@
 - Builder(s): **Manjeet Pathak**
 - Lane: `research-workflow-tooling`
 - Governing gate: issue #51 (parent #47)
-- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3` (supersedes v1 and v2; amendments A1-A19 and implementation defects D1-D4 logged in `experiment_contract.json`)
-- Freeze identity: PR #57 head + tag `microstructure-freeze-v3` + CI artifact `microstructure-mechanism-contract-<sha>`
+- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4` (supersedes v1, v2 and v3; amendments A1-A24 and implementation defects D1-D8 logged in `experiment_contract.json`)
+- Freeze identity: PR #57 head + tag `microstructure-freeze-v4` + CI artifact `microstructure-mechanism-contract-<sha>`
   (rule in `experiment_contract.json` `authority.freeze_identity_rule`; the SHA is not embedded because this file is part of the commit it would name)
 - Freeze timestamp UTC: 2026-09-19, amended 2026-09-20
 - Status: `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised pending independent pre-run review
@@ -88,7 +88,7 @@ python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-
 
 ## Amendments after freeze
 
-The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A19), each entry carrying
+The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A24), each entry carrying
 timestamp, old rule, new rule, reason, reviewer reference, whether any frozen-scale outcome had been seen,
 and the superseded commit. No prior rule is ever deleted. Summary of what moved after the initial freeze:
 
@@ -105,6 +105,12 @@ and the superseded commit. No prior rule is ever deleted. Summary of what moved 
   withdrawn, the robustness-cell confound declared, and the environment-lock digest corrected to the
   repository blob.
 
+- **A20-A24** follow a second adversarial self-audit: the environment lock closed against sdist
+  fallback and an unpinned build backend, a runtime-identity gate before the confirmatory run, seed
+  identity enforced rather than seed count, the robustness latency read from the contract instead of
+  assumed, and the exposure count made exact for both channels.
+
 Implementation defects found before any confirmatory run are recorded separately in
-`freeze.implementation_defects_corrected` (D1-D4). Two of them, the floating-point pro-rata tie-break and
-the missing display replenishment, would have invalidated the comparison had it been run.
+`freeze.implementation_defects_corrected` (D1-D8). Three of them would have invalidated the comparison
+had it been run: the floating-point pro-rata tie-break (D1), the missing display replenishment (D2), and
+a decision rule that checked seed count but never seed identity (D5).

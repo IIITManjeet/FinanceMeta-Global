@@ -39,7 +39,7 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
         validator.validate(self.data, PROTOCOL)
 
     def test_contract_id_cannot_drift(self) -> None:
-        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4"))
+        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5"))
 
     def test_status_cannot_leave_frozen_pre_result(self) -> None:
         self._reject(lambda d: d.__setitem__("status", "EXECUTED"))
@@ -153,7 +153,7 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
         self._reject(lambda d: d["freeze"]["amendments"][0].__setitem__("superseded_commit", "yesterday"))
 
     def test_freeze_tag_must_be_the_current_version(self) -> None:
-        self._reject(lambda d: d["authority"].__setitem__("freeze_tag", "microstructure-freeze-v1"))
+        self._reject(lambda d: d["authority"].__setitem__("freeze_tag", "microstructure-freeze-v3"))
 
     def test_superseded_tag_cannot_be_dropped(self) -> None:
         self._reject(lambda d: d["authority"].__setitem__("superseded_tags", []))

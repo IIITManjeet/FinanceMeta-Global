@@ -147,6 +147,35 @@ def smoke(cfg) -> int:
     return 0
 
 
+def _require_locked_runtime(cfg, contract_path: Path) -> None:
+    """Gate the confirmatory run on the frozen runtime and lock, before it runs.
+
+    The contract records an environment lock; recording it after the fact is a
+    receipt, not a lock. These checks fail closed before any cell executes.
+    """
+    data = json.loads(contract_path.read_text(encoding="utf-8"))
+    lock = data["reproduction"]["environment_lock"]
+
+    expected = str(lock["runtime_identity"]).replace("CPython", "").strip()
+    actual = platform.python_version()
+    if not actual.startswith(expected):
+        raise SystemExit(
+            f"refusing to run: frozen runtime identity is {lock['runtime_identity']}, "
+            f"this interpreter is CPython {actual}"
+        )
+
+    lock_path = Path(__file__).resolve().parents[2] / Path(lock["file"]).name
+    if not lock_path.is_file():
+        raise SystemExit(f"refusing to run: environment lock missing at {lock_path}")
+    digest = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    if digest != lock["sha256"]:
+        raise SystemExit(
+            f"refusing to run: environment lock digest mismatch. "
+            f"contract {lock['sha256']}, file {digest}"
+        )
+    print(f"Runtime gate: CPython {actual}, lock {digest[:12]} ... OK")
+
+
 def build_matrix(cfg) -> list[tuple[str, int, int, str, dict | None]]:
     jobs: list[tuple[str, int, int, str, dict | None]] = []
     seeds = cfg.confirmation_seeds
@@ -156,7 +185,7 @@ def build_matrix(cfg) -> list[tuple[str, int, int, str, dict | None]]:
                 jobs.append((mechanism, seed, latency, "main", None))
         for seed in seeds:
             jobs.append(
-                (mechanism, seed, cfg.matched_baseline_ms, "robustness", CONSTANT_SIZE_DISTRIBUTION)
+                (mechanism, seed, cfg.robustness_latency_ms, "robustness", CONSTANT_SIZE_DISTRIBUTION)
             )
     return jobs
 
@@ -212,6 +241,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.smoke:
         return smoke(cfg)
 
+    _require_locked_runtime(cfg, contract_path)
+
     args.out.mkdir(parents=True, exist_ok=True)
 
     print("Verifying frozen controls ...")
@@ -225,7 +256,9 @@ def main(argv: list[str] | None = None) -> int:
     records = []
     started = time.time()
     for i, (mechanism, seed, latency, cell, dist) in enumerate(jobs, start=1):
-        result = run_once(cfg, mechanism, seed, latency, cell=cell, size_distribution=dist)
+        result = run_once(
+            cfg, mechanism, seed, latency, cell=cell, size_distribution=dist, allow_frozen_seed=True
+        )
         records.append(result.to_record())
         if i % 25 == 0 or i == len(jobs):
             rate = i / max(time.time() - started, 1e-9)

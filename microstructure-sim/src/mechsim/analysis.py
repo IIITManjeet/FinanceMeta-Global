@@ -121,12 +121,37 @@ def _ppf(p: float) -> float:
     return (lo + hi) / 2.0
 
 
-def paired_differences(records: list[dict], latency_ms: int, cell: str, metric: str) -> np.ndarray:
-    """PRO_RATA minus FIFO per seed. Fails closed on an incomplete pair."""
+def paired_differences(
+    records: list[dict], latency_ms: int, cell: str, metric: str,
+    expected_seeds: tuple[int, ...] | None = None,
+) -> np.ndarray:
+    """PRO_RATA minus FIFO per seed. Fails closed on anything unexpected.
+
+    Checks seed identity, not merely count. Thirty records carrying the wrong
+    seed values used to satisfy the completeness gate and produce a clean
+    verdict. Duplicate records for the same (seed, mechanism) used to overwrite
+    silently, last write wins. Non-finite differences used to reach numpy and
+    surface as an internal percentile error rather than a check of our own.
+    """
     by_seed: dict[int, dict[str, float | None]] = {}
     for r in records:
-        if r["latency_ms"] == latency_ms and r["cell"] == cell:
-            by_seed.setdefault(r["seed"], {})[r["mechanism"]] = r[metric]
+        if r["latency_ms"] != latency_ms or r["cell"] != cell:
+            continue
+        arm = by_seed.setdefault(r["seed"], {})
+        if r["mechanism"] in arm:
+            raise ValueError(
+                f"duplicate record for seed={r['seed']} mechanism={r['mechanism']} "
+                f"latency={latency_ms} cell={cell}: a run set must not contain repeats"
+            )
+        arm[r["mechanism"]] = r[metric]
+
+    if expected_seeds is not None and by_seed and set(by_seed) != set(expected_seeds):
+        unexpected = sorted(set(by_seed) - set(expected_seeds))
+        missing = sorted(set(expected_seeds) - set(by_seed))
+        raise ValueError(
+            f"seed set mismatch in cell (latency={latency_ms}, {cell}): "
+            f"unexpected {unexpected[:5]}, missing {missing[:5]}"
+        )
 
     diffs: list[float] = []
     for seed in sorted(by_seed):
@@ -138,7 +163,13 @@ def paired_differences(records: list[dict], latency_ms: int, cell: str, metric: 
                 f"the decision metric is defined for every retained run, so this is a bug"
             )
         diffs.append(float(b) - float(a))
-    return np.asarray(diffs, dtype=float)
+    out = np.asarray(diffs, dtype=float)
+    if out.size and not np.isfinite(out).all():
+        raise ValueError(
+            f"non-finite decision-metric difference in cell (latency={latency_ms}, {cell}): "
+            "NaN or infinity must never reach the decision rule"
+        )
+    return out
 
 
 def decide(records: list[dict], cfg) -> dict:
@@ -148,7 +179,7 @@ def decide(records: list[dict], cfg) -> dict:
     ratio_max = cfg.attenuation_ratio_max
 
     expected = len(cfg.confirmation_seeds)
-    diffs = paired_differences(records, baseline, "main", metric)
+    diffs = paired_differences(records, baseline, "main", metric, cfg.confirmation_seeds)
     if diffs.size != expected:
         raise ValueError(
             f"decision cell has {diffs.size} paired differences, expected {expected}; "
@@ -164,7 +195,7 @@ def decide(records: list[dict], cfg) -> dict:
         """No try/except: a missing or short control cell is a bug, and
         swallowing it would silently drop a negative-result label and upgrade
         the verdict toward the positive headline."""
-        d = paired_differences(records, latency, cell, metric)
+        d = paired_differences(records, latency, cell, metric, cfg.confirmation_seeds)
         if d.size != expected:
             raise ValueError(f"cell (latency={latency}, {cell}) has {d.size} pairs, expected {expected}")
         return bca_interval(d, cfg.bootstrap_resamples, cfg.bootstrap_seed)

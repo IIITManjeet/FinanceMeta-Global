@@ -99,6 +99,10 @@ def test_no_test_module_executes_a_frozen_seed(cfg) -> None:
 
     This is how development seeds 7 and 11 were exposed: the suite itself ran
     paired comparisons on them at the matched baseline.
+
+    This scan is a backstop, not the primary defence. It only sees literals in
+    the seed position, so an alias, a loop variable or a helper call walks past
+    it. The real guard is the runtime check inside run_once.
     """
     frozen = set(cfg.seeds) | set(cfg.confirmation_seeds)
     offenders = []
@@ -110,10 +114,43 @@ def test_no_test_module_executes_a_frozen_seed(cfg) -> None:
             name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
             if name not in {"run_once", "generate_stream", "stream_digest"}:
                 continue
-            values = [a.value for a in node.args if isinstance(a, ast.Constant)]
+            # Only the seed position counts. Scanning every integer argument
+            # treats latency_ms=5 as development seed 5.
+            seed_arg = {"run_once": 2, "generate_stream": 1}.get(name)
+            values = []
+            if seed_arg is not None and len(node.args) > seed_arg:
+                a = node.args[seed_arg]
+                if isinstance(a, ast.Constant):
+                    values.append(a.value)
             values += [k.value.value for k in node.keywords
                        if k.arg == "seed" and isinstance(k.value, ast.Constant)]
+            authorised = any(k.arg == "allow_frozen_seed" for k in node.keywords)
             for v in values:
-                if isinstance(v, int) and v in frozen:
+                if isinstance(v, int) and v in frozen and not authorised:
                     offenders.append(f"{path.name}:{node.lineno} -> seed {v}")
     assert not offenders, "tests must not execute frozen seeds: " + "; ".join(offenders)
+
+
+def test_run_once_refuses_a_frozen_seed_at_runtime(cfg) -> None:
+    """A runtime guard, not a lint rule. The AST scan can be walked around."""
+    import dataclasses
+    from mechsim.sim import run_once
+    probe = dataclasses.replace(cfg, warm_up_events=50, horizon_events=100)
+    for seed in (cfg.seeds[0], cfg.confirmation_seeds[0]):
+        with pytest.raises(ValueError, match="refusing to run frozen seed"):
+            run_once(probe, "FIFO", seed, 5)
+
+
+def test_run_once_allows_a_frozen_seed_when_authorised(cfg) -> None:
+    import dataclasses
+    from mechsim.sim import run_once
+    probe = dataclasses.replace(cfg, warm_up_events=50, horizon_events=100)
+    result = run_once(probe, "FIFO", cfg.confirmation_seeds[0], 5, allow_frozen_seed=True)
+    assert result.seed == cfg.confirmation_seeds[0]
+
+
+def test_robustness_latency_comes_from_the_contract(cfg) -> None:
+    """It coincided with the baseline by accident; nothing tied them together."""
+    from mechsim.reproduce import build_matrix
+    latencies = {job[2] for job in build_matrix(cfg) if job[3] == "robustness"}
+    assert latencies == {cfg.robustness_latency_ms}

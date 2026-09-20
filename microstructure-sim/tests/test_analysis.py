@@ -244,3 +244,52 @@ def test_decision_reports_pairing_and_sign_counts() -> None:
     }), cfg())
     assert out["pairing"] == "paired_by_seed"
     assert out["sign_counts"]["positive"] + out["sign_counts"]["negative"] == 30
+
+
+# --- fail-closed guards added after the second adversarial audit -------------
+
+def test_seed_identity_is_checked_not_just_count() -> None:
+    """Thirty records on the wrong seeds used to produce a clean verdict."""
+    wrong = tuple(900_000_500 + i for i in range(30))
+    r = [
+        {"seed": s, "latency_ms": lat, "cell": cell, "mechanism": m,
+         "implementation_shortfall_bps": 5.0 if m == "PRO_RATA" else 1.0}
+        for lat, cell in ((5, "main"), (0, "main"), (5, "robustness"))
+        for s in wrong for m in ("FIFO", "PRO_RATA")
+    ]
+    with pytest.raises(ValueError, match="seed set mismatch"):
+        decide(r, cfg())
+
+
+def test_duplicate_records_are_rejected() -> None:
+    """Last-write-wins silently corrupted the statistic."""
+    r = [
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "FIFO",
+         "implementation_shortfall_bps": v}
+        for v in (1.0, 999.0)
+    ]
+    with pytest.raises(ValueError, match="must not contain repeats"):
+        paired_differences(r, 5, "main", "implementation_shortfall_bps")
+
+
+def test_non_finite_differences_are_rejected() -> None:
+    """Protection used to be an accident of numpy's percentile bounds check."""
+    r = []
+    for s in SEEDS:
+        for m in ("FIFO", "PRO_RATA"):
+            bad = float("nan") if (s == SEEDS[0] and m == "FIFO") else 1.0
+            r.append({"seed": s, "latency_ms": 5, "cell": "main", "mechanism": m,
+                      "implementation_shortfall_bps": bad})
+    with pytest.raises(ValueError, match="non-finite"):
+        paired_differences(r, 5, "main", "implementation_shortfall_bps", SEEDS)
+
+
+def test_infinite_differences_are_rejected() -> None:
+    r = []
+    for s in SEEDS:
+        for m in ("FIFO", "PRO_RATA"):
+            bad = float("inf") if m == "PRO_RATA" else 1.0
+            r.append({"seed": s, "latency_ms": 5, "cell": "main", "mechanism": m,
+                      "implementation_shortfall_bps": bad})
+    with pytest.raises(ValueError, match="non-finite"):
+        paired_differences(r, 5, "main", "implementation_shortfall_bps", SEEDS)

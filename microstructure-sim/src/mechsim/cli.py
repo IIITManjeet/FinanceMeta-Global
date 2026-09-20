@@ -52,7 +52,10 @@ def main(argv: list[str] | None = None) -> int:
             "development or confirmation seed. Use a sentinel seed, or pass "
             "--i-am-authorised-to-run-a-frozen-seed if a run has been authorised."
         )
-    result = run_once(cfg, args.mechanism, args.seed, args.latency_ms)
+    result = run_once(
+        cfg, args.mechanism, args.seed, args.latency_ms,
+        allow_frozen_seed=args.i_am_authorised_to_run_a_frozen_seed,
+    )
     print(json.dumps(result.to_record(), indent=2, sort_keys=True))
     return 0
 

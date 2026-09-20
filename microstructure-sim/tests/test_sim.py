@@ -108,3 +108,29 @@ def test_higher_latency_does_not_crash_the_tracked_agent(probe) -> None:
     for latency in (0, 1, 2, 5, 10, 25, 50, 100):
         result = run_once(probe, FIFO, seed=900_000_100, latency_ms=latency)
         assert 0.0 <= result.fill_probability <= 1.0
+
+
+def test_replenishment_churn_is_measurable_and_directional(cfg) -> None:
+    """The disclosed churn asymmetry must be re-derivable, not a one-off number.
+
+    Run at reduced scale for test speed; the figure quoted in the contract is
+    measured at the frozen scale by the same function.
+    """
+    from mechsim.diagnostics import measure_replenishment_churn
+
+    result = measure_replenishment_churn(
+        cfg, seeds=(900_000_001, 900_000_002, 900_000_003),
+        warm_up_events=500, horizon_events=3000,
+    )
+    assert result.fifo_mean > 0 and result.pro_rata_mean > 0
+    assert result.excess_fraction > 0, "pro-rata is expected to replace more often"
+    assert result.seeds_with_pro_rata_higher == len(result.seeds)
+    assert "excess" in result.summary()
+
+
+def test_churn_diagnostic_refuses_frozen_seeds(cfg) -> None:
+    from mechsim.diagnostics import measure_replenishment_churn
+
+    with pytest.raises(ValueError, match="refusing to run frozen seed"):
+        measure_replenishment_churn(cfg, seeds=(cfg.confirmation_seeds[0],),
+                                    warm_up_events=50, horizon_events=100)

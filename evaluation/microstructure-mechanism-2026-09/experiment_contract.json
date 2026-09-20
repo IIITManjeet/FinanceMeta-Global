@@ -1,6 +1,6 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5",
-  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5",
   "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
   "amended_date": "2026-09-20",
@@ -11,15 +11,16 @@
     "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
     "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
     "pull_request": "build-the-future-11/FinanceMeta-Global#57",
-    "freeze_tag": "microstructure-freeze-v5",
+    "freeze_tag": "microstructure-freeze-v6",
     "superseded_tags": [
       "microstructure-freeze-v1",
       "microstructure-freeze-v2",
       "microstructure-freeze-v3",
-      "microstructure-freeze-v4"
+      "microstructure-freeze-v4",
+      "microstructure-freeze-v5"
     ],
     "freeze_commit_sha": null,
-    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v5 (git rev-parse microstructure-freeze-v5^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1 to v4 identify superseded documents."
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v6 (git rev-parse microstructure-freeze-v6^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1 to v5 identify superseded documents."
   },
   "freeze": {
     "results_inspected": true,
@@ -418,6 +419,34 @@
           "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure and the single confirmation-seed touch recorded there."
         },
         "superseded_commit": "1c9186b"
+      },
+      {
+        "id": "A29",
+        "section": "/freeze/implementation_defects_corrected/D2/residual_asymmetry",
+        "old_rule": "The residual replenishment asymmetry was disclosed as 42 percent, with a companion mean-displayed-size figure, both from one-off measurements at a reduced scale.",
+        "new_rule": "The asymmetry is 24.3 percent, measured at the frozen scale by a committed diagnostic with fixed sentinel seeds, and the record carries the command that regenerates it. The mean-displayed-size figure is withdrawn as unreproducible.",
+        "reason": "A figure quoted in the frozen record has to be re-derivable at the scale it claims to describe. The original number was measured at a reduced scale and did not hold at the frozen one, and nothing in the repository could have caught that because no code computed it.",
+        "timestamp_utc": "2026-09-20T13:50:51Z",
+        "reviewer_reference": "adversarial self-audit against the PR #57 pre-run blocker",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Diagnostics run on sentinel seeds only; run_once refuses frozen seeds."
+        },
+        "superseded_commit": "6695c56"
+      },
+      {
+        "id": "A30",
+        "section": "mechsim/cli.py",
+        "old_rule": "The CLI authorisation flag cleared only the CLI gate and was not forwarded to the runtime guard.",
+        "new_rule": "The flag is forwarded to run_once, so the documented authorisation path behaves as documented.",
+        "reason": "The tool refused its own documented path. It failed closed rather than open, so nothing was exposed, but the help text described behaviour that did not exist.",
+        "timestamp_utc": "2026-09-20T13:50:51Z",
+        "reviewer_reference": "adversarial self-audit against the PR #57 pre-run blocker",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. Diagnostics run on sentinel seeds only; run_once refuses frozen seeds."
+        },
+        "superseded_commit": "6695c56"
       }
     ],
     "exposure": {
@@ -525,8 +554,10 @@
         "defect": "The tracked display order was never replenished after a partial fill, so displayed size decayed below display_lots and the decay was mechanism-dependent.",
         "measured": "Mean displayed size 7.72 lots under FIFO and 6.42 under pro-rata against a frozen display of 10.",
         "fix": "Cancel and replace to full display size when resting quantity falls below target, which is the correct exchange semantics for a top-up.",
-        "verified": "Mean displayed size 9.15 and 8.81 after the fix; the residual shortfall is the latency window between a fill and the replacement landing.",
-        "residual_asymmetry": "The fix equalises displayed size at placement but not replacement frequency: pro-rata cancel-replaces the tracked order about 42 percent more often than FIFO (mean 120.5 versus 84.75 placements per run over 8 sentinel seeds, pro-rata higher in 8 of 8). Each episode resets queue position and costs a latency window, so time-to-fill comparisons inherit this. This is plausibly inherent to the mechanisms rather than a defect, and it is disclosed rather than corrected because correcting it would change the participant model."
+        "verified": "Displayed size at each placement is the full target; the residual shortfall is the latency window between a fill and the replacement landing. See residual_asymmetry for the replacement-frequency figure and its reproducer.",
+        "residual_asymmetry": "The fix equalises displayed size at placement but not replacement frequency. Measured at the frozen scale (10000 warm-up + 100000 events, latency 5 ms, sentinel seeds 900000001-900000008): FIFO 214.5 placements per run, pro-rata 266.6, so pro-rata replaces its order 24.3 percent more often, higher in 8 of 8 seeds. Each episode resets queue position and costs a latency window, so time-to-fill comparisons inherit it. Plausibly inherent to the mechanisms rather than a defect, so it is disclosed rather than corrected.",
+        "residual_asymmetry_reproducer": "python -c \"from mechsim.contract import load_config; from mechsim.diagnostics import measure_replenishment_churn; print(measure_replenishment_churn(load_config()).summary())\"",
+        "residual_asymmetry_superseded_figure": "An earlier revision of this record quoted 42 percent (120.5 versus 84.75 placements) and a mean displayed size of 9.15 versus 8.81 lots. Both were one-off measurements: the first was taken at a reduced scale and does not hold at the frozen scale, and the second was never computed by any committed code and proved sensitive to an unspecified definition. Both are withdrawn and replaced by the figure above, which a committed function regenerates."
       },
       {
         "id": "D3",
@@ -608,6 +639,22 @@
         "defect": "No code anywhere read confirmatory_status. The contract could record NOT_AUTHORIZED while the confirmatory command ran to completion, so the reviewer's requirement to authorise outcome execution only after independent review was a convention with nothing behind it.",
         "fix": "The confirmatory path refuses to start unless the contract records an AUTHORIZED status, before the output directory is created or any control runs. The smoke path is unaffected.",
         "verified": "The confirmatory command now exits with the refusal and creates no output; --smoke still passes."
+      },
+      {
+        "id": "D13",
+        "found_by": "adversarial self-audit, fourth round",
+        "severity": "major",
+        "defect": "The disclosed replenishment-churn asymmetry was measured at a reduced scale and quoted as 42 percent. At the frozen scale the confirmatory run uses it is 24.3 percent. A companion figure, mean displayed size of 9.15 versus 8.81 lots, was computed by no code at all and proved sensitive to an unspecified definition, reversing direction under a plausible alternative.",
+        "fix": "Both figures are withdrawn. The churn asymmetry is re-measured at the frozen scale by a committed function, mechsim.diagnostics.measure_replenishment_churn, with fixed sentinel seeds and a reproducer command recorded alongside the figure. A regression test asserts the direction and that the diagnostic refuses frozen seeds.",
+        "verified": "Re-measured at 10000 + 100000 events: FIFO 214.5, pro-rata 266.6, 24.3 percent, 8 of 8 seeds."
+      },
+      {
+        "id": "D14",
+        "found_by": "adversarial self-audit, fourth round",
+        "severity": "minor",
+        "defect": "The CLI authorisation flag --i-am-authorised-to-run-a-frozen-seed cleared the CLI gate but was never forwarded to run_once, whose own guard then refused, so the documented single-run authorisation path could never succeed.",
+        "fix": "The flag is forwarded. A test parses cli.main and fails if the call stops forwarding it.",
+        "verified": "Test asserts the keyword is present on the run_once call in cli.main."
       }
     ]
   },

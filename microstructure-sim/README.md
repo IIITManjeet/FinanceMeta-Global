@@ -1,6 +1,6 @@
 # mechsim: mechanism allocation under frozen order flow
 
-**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v5, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
+**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v6, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
 
 A deterministic discrete-event limit-order-book simulator built for one bounded
 question: under an identical synthetic order-flow realization and latency model,
@@ -124,8 +124,8 @@ afterwards:
   separate cell, and **no latency parity is claimed at any cell**. This bounds
   what the latency sweep can demonstrate.
 - **Replenishment churn is asymmetric.** The tracked order is topped up to full
-  display after a partial fill, but pro-rata triggers that top-up about 42% more
-  often than FIFO, and each episode resets queue position. Disclosed rather than
+  display after a partial fill, but pro-rata triggers that top-up about 24% more
+  often than FIFO at the frozen scale, and each episode resets queue position. Disclosed rather than
   engineered away, because it is plausibly inherent to the mechanisms.
 - **The robustness cell moves depth as well as size.** Constant 1-lot background
   orders also change aggregate depth and per-order lifetime, so

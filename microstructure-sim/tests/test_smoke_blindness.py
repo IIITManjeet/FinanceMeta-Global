@@ -214,3 +214,17 @@ def test_runtime_gate_rejects_a_drifted_environment(cfg, monkeypatch) -> None:
                         lambda n: "99.0.0" if n == "numpy" else real(n))
     with pytest.raises(SystemExit, match="does not match the lock"):
         R._require_locked_runtime(cfg, Path(DEFAULT_CONTRACT))
+
+
+def test_cli_authorisation_flag_reaches_run_once() -> None:
+    """The flag used to clear only the CLI gate, so the documented path always failed."""
+    import mechsim.cli as cli
+    src = inspect.getsource(cli.main)
+    tree = ast.parse(textwrap.dedent(src))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "run_once":
+            assert any(k.arg == "allow_frozen_seed" for k in node.keywords), (
+                "cli run must forward its authorisation flag to run_once"
+            )
+            return
+    raise AssertionError("no run_once call found in cli.main")

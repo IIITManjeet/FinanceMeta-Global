@@ -5,7 +5,7 @@ cell has been inspected, so there is no result in this document yet. It exists
 now because the contract obliges the exposure below to be reported here, and
 that obligation should not point at a file that does not exist.
 
-Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5` (amendments A1-A28, defects D1-D12) · gate issue #51 · PR #57
+Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6` (amendments A1-A30, defects D1-D14) · gate issue #51 · PR #57
 
 ## Primary result
 
@@ -70,11 +70,16 @@ run.
   display; the residual shortfall is now only the latency window between a fill
   and the replacement landing. **Residual asymmetry, disclosed not corrected:**
   the fix equalises displayed *size* but not replacement *frequency* — pro-rata
-  cancel-replaces about 42% more often than FIFO (mean 120.5 versus 84.75
-  placements per run across 8 sentinel seeds, pro-rata higher in 8 of 8). Each
-  episode resets queue position and costs a latency window, so time-to-fill
-  comparisons inherit it. This is plausibly inherent to the mechanisms rather
-  than a defect, so it is declared rather than engineered away.
+  cancel-replaces about 24% more often than FIFO: 214.5 versus 266.6 placements
+  per run at the frozen scale, across sentinel seeds 900000001-900000008, with
+  pro-rata higher in 8 of 8. Each episode resets queue position and costs a
+  latency window, so time-to-fill comparisons inherit it. This is plausibly
+  inherent to the mechanisms rather than a defect, so it is declared rather than
+  engineered away. Regenerate with
+  `mechsim.diagnostics.measure_replenishment_churn`. An earlier revision quoted
+  42% and a mean displayed size of 9.15 versus 8.81 lots; both were one-off
+  measurements, the first taken at a reduced scale that does not hold at the
+  frozen one and the second computed by no committed code. Both are withdrawn.
 - **D3 — the decision rule failed open.** A missing or short control cell was
   swallowed, silently suppressing `LATENCY_DRIVEN` or `ASSUMPTION_DRIVEN` and
   upgrading the verdict toward the positive headline; a bootstrap on fewer than

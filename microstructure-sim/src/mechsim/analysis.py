@@ -77,9 +77,9 @@ def sign_test_p(n_plus: int, n_minus: int) -> float:
 def bca_interval(diffs: np.ndarray, resamples: int, seed: int, alpha: float = 0.05) -> Interval:
     """BCa bootstrap CI for the mean of the paired differences."""
     n = diffs.size
-    observed = float(diffs.mean())
     if n < 3:
-        return Interval(observed, float("nan"), float("nan"), n, True)
+        raise ValueError(f"bootstrap needs at least 3 paired differences, got {n}")
+    observed = float(diffs.mean())
 
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, n, size=(resamples, n))
@@ -147,25 +147,33 @@ def decide(records: list[dict], cfg) -> dict:
     baseline = cfg.matched_baseline_ms
     ratio_max = cfg.attenuation_ratio_max
 
+    expected = len(cfg.confirmation_seeds)
     diffs = paired_differences(records, baseline, "main", metric)
+    if diffs.size != expected:
+        raise ValueError(
+            f"decision cell has {diffs.size} paired differences, expected {expected}; "
+            "the decision metric is defined for every retained run, so this is a bug"
+        )
     interval = bca_interval(diffs, cfg.bootstrap_resamples, cfg.bootstrap_seed)
 
     n_plus = int((diffs > 0).sum())
     n_minus = int((diffs < 0).sum())
     p_sign = sign_test_p(n_plus, n_minus)
 
-    def cell_interval(latency: int, cell: str) -> Interval | None:
-        try:
-            d = paired_differences(records, latency, cell, metric)
-        except ValueError:
-            return None
-        return bca_interval(d, cfg.bootstrap_resamples, cfg.bootstrap_seed) if d.size >= 3 else None
+    def cell_interval(latency: int, cell: str) -> Interval:
+        """No try/except: a missing or short control cell is a bug, and
+        swallowing it would silently drop a negative-result label and upgrade
+        the verdict toward the positive headline."""
+        d = paired_differences(records, latency, cell, metric)
+        if d.size != expected:
+            raise ValueError(f"cell (latency={latency}, {cell}) has {d.size} pairs, expected {expected}")
+        return bca_interval(d, cfg.bootstrap_resamples, cfg.bootstrap_seed)
 
     zero_ci = cell_interval(0, "main")
     robust_ci = cell_interval(baseline, "robustness")
 
-    def attenuated(ci: Interval | None) -> bool:
-        if ci is None or interval.point == 0.0:
+    def attenuated(ci: Interval) -> bool:
+        if interval.point == 0.0:
             return False
         return ci.contains_zero and abs(ci.point) <= ratio_max * abs(interval.point)
 
@@ -195,11 +203,11 @@ def decide(records: list[dict], cfg) -> dict:
         "sign_counts": {"positive": n_plus, "negative": n_minus, "zero": int((diffs == 0).sum())},
         "sign_test_p": p_sign,
         "attenuation_ratio_max": ratio_max,
-        "zero_latency": None if zero_ci is None else {
+        "zero_latency": {
             "point": zero_ci.point, "ci": [zero_ci.low, zero_ci.high],
             "ratio": abs(zero_ci.point) / abs(interval.point) if interval.point else None,
         },
-        "robustness": None if robust_ci is None else {
+        "robustness": {
             "point": robust_ci.point, "ci": [robust_ci.low, robust_ci.high],
             "ratio": abs(robust_ci.point) / abs(interval.point) if interval.point else None,
         },

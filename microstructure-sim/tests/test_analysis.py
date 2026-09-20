@@ -22,6 +22,10 @@ from mechsim.analysis import (
 )
 
 
+# Seed labels only - nothing is executed here, but they stay out of frozen space.
+SEEDS = tuple(900_000_300 + i for i in range(30))
+
+
 def cfg(ratio_max: float = 0.5):
     return SimpleNamespace(
         matched_baseline_ms=5,
@@ -29,14 +33,24 @@ def cfg(ratio_max: float = 0.5):
         bootstrap_seed=424242,
         attenuation_ratio_max=ratio_max,
         unstable_sign_test_alpha=0.05,
+        confirmation_seeds=SEEDS,
     )
 
 
 def records(values: dict[tuple[int, str, str], list[float]]) -> list[dict]:
-    """values[(latency, cell, mechanism)] -> per-seed decision-metric values."""
+    """values[(latency, cell, mechanism)] -> per-seed decision-metric values.
+
+    decide() now fails closed on a missing or short cell, so any cell not
+    supplied is filled with a flat zero-difference series.
+    """
+    filled = dict(values)
+    for latency, cell in ((5, "main"), (0, "main"), (5, "robustness")):
+        for mech in ("FIFO", "PRO_RATA"):
+            filled.setdefault((latency, cell, mech), [0.0] * len(SEEDS))
     out = []
-    for (latency, cell, mech), series in values.items():
-        for seed, v in enumerate(series):
+    for (latency, cell, mech), series in filled.items():
+        assert len(series) == len(SEEDS), "every cell must carry a full seed set"
+        for seed, v in zip(SEEDS, series):
             out.append({
                 "seed": seed, "latency_ms": latency, "cell": cell,
                 "mechanism": mech, "implementation_shortfall_bps": v,
@@ -64,25 +78,40 @@ def test_distribution_summary_of_all_undefined_is_not_an_error() -> None:
 # ------------------------------------------------------------------- pairing
 
 def test_paired_differences_pairs_by_seed() -> None:
-    r = records({(5, "main", "FIFO"): [1.0, 2.0], (5, "main", "PRO_RATA"): [4.0, 3.0]})
+    r = [
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "FIFO", "implementation_shortfall_bps": 1.0},
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "PRO_RATA", "implementation_shortfall_bps": 4.0},
+        {"seed": SEEDS[1], "latency_ms": 5, "cell": "main", "mechanism": "FIFO", "implementation_shortfall_bps": 2.0},
+        {"seed": SEEDS[1], "latency_ms": 5, "cell": "main", "mechanism": "PRO_RATA", "implementation_shortfall_bps": 3.0},
+    ]
     assert list(paired_differences(r, 5, "main", "implementation_shortfall_bps")) == [3.0, 1.0]
 
 
 def test_incomplete_pair_fails_closed() -> None:
     """The metric is defined for every retained run, so a gap is a bug."""
-    r = records({(5, "main", "FIFO"): [1.0, 2.0], (5, "main", "PRO_RATA"): [4.0]})
+    r = [
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "FIFO", "implementation_shortfall_bps": 1.0},
+        {"seed": SEEDS[1], "latency_ms": 5, "cell": "main", "mechanism": "FIFO", "implementation_shortfall_bps": 2.0},
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "PRO_RATA", "implementation_shortfall_bps": 4.0},
+    ]
     with pytest.raises(ValueError, match="incomplete seed pair"):
         paired_differences(r, 5, "main", "implementation_shortfall_bps")
 
 
 def test_undefined_decision_metric_fails_closed() -> None:
-    r = records({(5, "main", "FIFO"): [1.0, 2.0], (5, "main", "PRO_RATA"): [4.0, None]})
+    r = [
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "FIFO", "implementation_shortfall_bps": 1.0},
+        {"seed": SEEDS[0], "latency_ms": 5, "cell": "main", "mechanism": "PRO_RATA", "implementation_shortfall_bps": None},
+    ]
     with pytest.raises(ValueError):
         paired_differences(r, 5, "main", "implementation_shortfall_bps")
 
 
 def test_paired_differences_ignores_other_cells_and_latencies() -> None:
-    r = records({(0, "main", "FIFO"): [1.0], (0, "main", "PRO_RATA"): [9.0]})
+    r = [
+        {"seed": SEEDS[0], "latency_ms": 0, "cell": "main", "mechanism": "FIFO", "implementation_shortfall_bps": 1.0},
+        {"seed": SEEDS[0], "latency_ms": 0, "cell": "main", "mechanism": "PRO_RATA", "implementation_shortfall_bps": 9.0},
+    ]
     assert paired_differences(r, 5, "main", "implementation_shortfall_bps").size == 0
 
 
@@ -147,9 +176,15 @@ def test_null_suppresses_the_other_labels() -> None:
 
 
 def test_difference_detected_when_effect_is_large_and_consistent() -> None:
-    shifted = list(np.random.default_rng(4).normal(50.0, 1.0, size=30))
-    r = records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): shifted})
-    assert decide(r, cfg())["verdict"] == DIFFERENCE
+    """Effect persists at 0 ms and in the robustness cell, so nothing attenuates it."""
+    rng = np.random.default_rng(4)
+    r = records({
+        (5, "main", "PRO_RATA"): list(rng.normal(50.0, 1.0, size=30)),
+        (0, "main", "PRO_RATA"): list(rng.normal(48.0, 1.0, size=30)),
+        (5, "robustness", "PRO_RATA"): list(rng.normal(49.0, 1.0, size=30)),
+    })
+    out = decide(r, cfg())
+    assert out["verdict"] == DIFFERENCE, out["criteria_met"]
 
 
 def test_latency_driven_requires_both_clauses() -> None:
@@ -201,7 +236,11 @@ def test_precedence_order_is_the_frozen_one() -> None:
 
 
 def test_decision_reports_pairing_and_sign_counts() -> None:
-    shifted = list(np.random.default_rng(14).normal(50.0, 1.0, size=30))
-    out = decide(records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): shifted}), cfg())
+    rng = np.random.default_rng(14)
+    out = decide(records({
+        (5, "main", "PRO_RATA"): list(rng.normal(50.0, 1.0, size=30)),
+        (0, "main", "PRO_RATA"): list(rng.normal(48.0, 1.0, size=30)),
+        (5, "robustness", "PRO_RATA"): list(rng.normal(49.0, 1.0, size=30)),
+    }), cfg())
     assert out["pairing"] == "paired_by_seed"
     assert out["sign_counts"]["positive"] + out["sign_counts"]["negative"] == 30

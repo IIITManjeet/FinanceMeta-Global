@@ -39,7 +39,7 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
         validator.validate(self.data, PROTOCOL)
 
     def test_contract_id_cannot_drift(self) -> None:
-        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3"))
+        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4"))
 
     def test_status_cannot_leave_frozen_pre_result(self) -> None:
         self._reject(lambda d: d.__setitem__("status", "EXECUTED"))
@@ -94,6 +94,76 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
 
     def test_environment_lock_must_enforce_hashes(self) -> None:
         self._reject(lambda d: d["reproduction"]["environment_lock"].__setitem__("hash_enforced", False))
+
+    def test_environment_lock_digest_must_match_the_file(self) -> None:
+        """Previously this only checked the string was 64 characters long."""
+        self._reject(
+            lambda d: d["reproduction"]["environment_lock"].__setitem__("sha256", "0" * 64)
+        )
+
+    def test_frozen_horizon_cannot_drift(self) -> None:
+        """Reduced scale is what caused the recorded exposure."""
+        self._reject(lambda d: d["horizon"].__setitem__("events_per_run_after_warm_up", 5000))
+
+    def test_warm_up_cannot_drift(self) -> None:
+        self._reject(lambda d: d["initial_book_state"].__setitem__("warm_up_events_discarded", 1000))
+
+    def test_parent_quantity_cannot_drift(self) -> None:
+        self._reject(lambda d: d["participants"]["tracked_agent"].__setitem__("parent_quantity_lots", 50))
+
+    def test_display_size_cannot_drift(self) -> None:
+        self._reject(lambda d: d["participants"]["tracked_agent"].__setitem__("display_lots", 1))
+
+    def test_replenishment_semantics_cannot_be_dropped(self) -> None:
+        self._reject(
+            lambda d: d["participants"]["tracked_agent"].__setitem__("replenishment", "unspecified")
+        )
+
+    def test_order_flow_rates_cannot_drift(self) -> None:
+        self._reject(lambda d: d["order_flow"].__setitem__("cancel_rate_per_resting_lot_per_sec", 0.5))
+
+    def test_order_size_distribution_cannot_drift(self) -> None:
+        self._reject(
+            lambda d: d["order_flow"].__setitem__("order_size_distribution_lots", {"1": 1.0})
+        )
+
+    def test_bootstrap_seed_cannot_drift(self) -> None:
+        self._reject(lambda d: d["seed_policy"].__setitem__("bootstrap_seed", 1))
+
+    def test_declared_implementation_defect_cannot_be_removed(self) -> None:
+        self._reject(
+            lambda d: d["freeze"].__setitem__(
+                "implementation_defects_corrected",
+                [x for x in d["freeze"]["implementation_defects_corrected"] if x["id"] != "D1"],
+            )
+        )
+
+    def test_defect_record_must_say_how_it_was_verified(self) -> None:
+        self._reject(lambda d: d["freeze"]["implementation_defects_corrected"][0].__setitem__("verified", ""))
+
+    def test_amendment_log_must_stay_contiguous(self) -> None:
+        """Deleting a middle amendment used to pass."""
+        self._reject(
+            lambda d: d["freeze"].__setitem__(
+                "amendments", [a for a in d["freeze"]["amendments"] if a["id"] != "A5"]
+            )
+        )
+
+    def test_superseded_commit_must_be_a_hash(self) -> None:
+        self._reject(lambda d: d["freeze"]["amendments"][0].__setitem__("superseded_commit", "yesterday"))
+
+    def test_freeze_tag_must_be_the_current_version(self) -> None:
+        self._reject(lambda d: d["authority"].__setitem__("freeze_tag", "microstructure-freeze-v1"))
+
+    def test_superseded_tag_cannot_be_dropped(self) -> None:
+        self._reject(lambda d: d["authority"].__setitem__("superseded_tags", []))
+
+    def test_identity_must_cover_the_executed_matrix(self) -> None:
+        self._reject(
+            lambda d: d["controls"]["identity_run"].__setitem__(
+                "verification", "sha256 equality on sentinel seeds"
+            )
+        )
 
     def test_environment_lock_must_predate_the_confirmatory_run(self) -> None:
         self._reject(

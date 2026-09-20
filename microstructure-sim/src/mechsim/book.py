@@ -100,6 +100,10 @@ class Book:
         order = self._index.get(order_id)
         return order.price if order is not None else None
 
+    def size_of(self, order_id: int) -> int:
+        order = self._index.get(order_id)
+        return order.size if order is not None else 0
+
     # lifecycle
 
     def add_limit(self, side: int, price: int, size: int, owner: str, order_id: int | None = None) -> int:

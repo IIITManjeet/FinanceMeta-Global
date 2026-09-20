@@ -1,6 +1,6 @@
 # mechsim: mechanism allocation under frozen order flow
 
-**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v2, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
+**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v3, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
 
 A deterministic discrete-event limit-order-book simulator built for one bounded
 question: under an identical synthetic order-flow realization and latency model,
@@ -76,9 +76,11 @@ Roughly 13 minutes single-threaded at frozen scale.
 `--smoke` is the only safe pre-authorisation check. It is outcome-blind by
 construction: sentinel seeds outside every frozen set, shape and invariant
 checks only, the decision rule never called, no run record and no verdict. The
-former `--quick` mode executed the frozen mechanisms on frozen seeds and printed
-a verdict, which partially unblinded seeds 0-5; it has been removed and the
-exposure is recorded in the contract.
+pre-run controls also take sentinel seeds and never read the frozen sets, and a
+meta-test fails the build if any test module executes a frozen seed. The former
+`--quick` mode executed the frozen mechanisms on frozen seeds and printed a
+verdict; it is gone, and the exposure is recorded in the contract and in
+`FINDINGS.md`.
 
 Other entry points:
 
@@ -93,7 +95,7 @@ python -m mechsim.cli run --mechanism PRO_RATA --seed 0 --latency-ms 5
 python -m pytest microstructure-sim -q
 ```
 
-98 tests covering allocation semantics for both mechanisms, the frozen analytic
+99 tests covering allocation semantics for both mechanisms, the frozen analytic
 and under-allocation cases, book mechanics, the intent-stream schema, the
 identity and determinism controls, Perold shortfall over the whole parent order,
 the paired bootstrap, sign test and verdict precedence, and guards that keep the

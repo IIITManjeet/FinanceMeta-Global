@@ -51,8 +51,18 @@ PRIMARY_METRICS = (
 )
 
 
-def verify_controls(cfg) -> dict:
-    """Run the four controls. Raises AssertionError on the first failure."""
+def verify_controls(cfg, seeds: tuple[int, ...] = SENTINEL_SEEDS) -> dict:
+    """Run the four controls. Raises AssertionError on the first failure.
+
+    Runs on sentinel seeds by default and never reads cfg.seeds, so that a
+    control pass cannot execute a development or confirmation seed. The
+    identity and determinism properties are structural, so sentinel seeds
+    demonstrate them exactly as well as frozen ones would.
+    """
+    for seed in seeds:
+        assert seed not in set(cfg.seeds) | set(cfg.confirmation_seeds), (
+            f"controls must not run on frozen seed {seed}"
+        )
     report: dict[str, object] = {}
 
     resting = [Resting(1, 2, 1), Resting(2, 10, 2)]
@@ -74,7 +84,7 @@ def verify_controls(cfg) -> dict:
     # Identity: both arms must consume the same realization. The generator takes
     # no mechanism argument, so this is structural; the digests record it.
     identity = {}
-    for seed in cfg.seeds[:5]:
+    for seed in seeds:
         digests = {m: stream_digest(generate_stream(cfg, seed, 2000)) for m in (FIFO, PRO_RATA)}
         assert digests[FIFO] == digests[PRO_RATA], f"identity control failed at seed {seed}"
         identity[seed] = digests[FIFO]
@@ -83,8 +93,8 @@ def verify_controls(cfg) -> dict:
 
     # Determinism: replay must be byte-identical.
     probe = dataclasses.replace(cfg, warm_up_events=500, horizon_events=2000)
-    first = run_once(probe, FIFO, seed=cfg.seeds[0], latency_ms=cfg.matched_baseline_ms)
-    second = run_once(probe, FIFO, seed=cfg.seeds[0], latency_ms=cfg.matched_baseline_ms)
+    first = run_once(probe, FIFO, seed=seeds[0], latency_ms=cfg.matched_baseline_ms)
+    second = run_once(probe, FIFO, seed=seeds[0], latency_ms=cfg.matched_baseline_ms)
     a = json.dumps(first.to_record(), sort_keys=True).encode()
     b = json.dumps(second.to_record(), sort_keys=True).encode()
     assert a == b, "determinism control failed: replay is not byte-identical"
@@ -246,6 +256,15 @@ def main(argv: list[str] | None = None) -> int:
                     "with_flags": sum(1 for r in subset if r["flags"]),
                     "flag_counts": _flag_counts(subset),
                 }
+
+    # Identity across the run matrix that was actually executed. The pre-run
+    # control is structural; this is the one that binds the reported records.
+    by_cell: dict[tuple[int, int, str], dict[str, str]] = {}
+    for r in records:
+        by_cell.setdefault((r["seed"], r["latency_ms"], r["cell"]), {})[r["mechanism"]] = r["stream_sha256"]
+    for key, arms in sorted(by_cell.items()):
+        assert arms.get(FIFO) == arms.get(PRO_RATA), f"identity failed on executed cell {key}"
+    controls["identity_across_run_matrix"] = f"PASS ({len(by_cell)} cells)"
 
     decision = decide(records, cfg)
 

@@ -1,6 +1,6 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2",
-  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v1",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2",
   "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
   "amended_date": "2026-09-20",
@@ -11,12 +11,13 @@
     "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
     "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
     "pull_request": "build-the-future-11/FinanceMeta-Global#57",
-    "freeze_tag": "microstructure-freeze-v2",
+    "freeze_tag": "microstructure-freeze-v3",
     "superseded_tags": [
-      "microstructure-freeze-v1"
+      "microstructure-freeze-v1",
+      "microstructure-freeze-v2"
     ],
     "freeze_commit_sha": null,
-    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v2 (git rev-parse microstructure-freeze-v2^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name."
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v3 (git rev-parse microstructure-freeze-v3^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1 and v2 identify superseded documents."
   },
   "freeze": {
     "results_inspected": true,
@@ -191,12 +192,110 @@
           "note": "Frozen-scale outcomes remain uninspected. The recorded exposure is the reduced-scale development exposure described in freeze.exposure."
         },
         "superseded_commit": "678cb1a989045b19f845e39ebd87c1b8fa76e4fb"
+      },
+      {
+        "id": "A13",
+        "section": "/participants/tracked_agent",
+        "old_rule": "style 'passive limit at best bid, replenished' with display_lots 10, replenishment semantics unspecified.",
+        "new_rule": "Replenishment is cancel-and-replace to the full display size whenever the resting tracked quantity falls below min(display_lots, remaining). Topping up loses time priority, which is the correct exchange semantics.",
+        "reason": "The contract required replenishment but did not say how, and the implementation did not replenish at all after partial fills. The shortfall was mechanism-dependent, so it biased the comparison. Fixing it required choosing semantics, so the choice is recorded rather than made silently.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A14",
+        "section": "/controls/identity_run, /controls/deterministic_replay",
+        "old_rule": "Pre-run controls were verified on development seeds 0-4.",
+        "new_rule": "Pre-run controls execute on sentinel seeds only and never read the development or confirmation sets. Identity across the executed run matrix is asserted after the run, comparing the per-run intent-stream digest between arms for every executed cell.",
+        "reason": "Running controls on frozen seeds is outcome production. The pre-run identity check was also a tautology, since the generator takes no mechanism argument, so the meaningful check is the one over the records the run actually produces.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A15",
+        "section": "/metrics/decision_metric/seed_pairs_required_complete",
+        "old_rule": "Completeness was asserted for the decision cell only, and the control cells failed open.",
+        "new_rule": "Every cell used by the decision rule must carry the complete confirmation seed set. A missing, short or incomplete cell raises rather than being skipped.",
+        "reason": "A swallowed control cell silently dropped a negative-result label and upgraded the verdict toward the positive headline, a directional failure of the same kind the review objected to on the decision metric.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A16",
+        "section": "/freeze/exposure",
+        "old_rule": "Exposure recorded as development seeds 0-5 via the quick verification path.",
+        "new_rule": "Exposure covers development seeds 0-5, 7 and 11 across two channels: the quick verification path and the automated test suite.",
+        "reason": "The test suite ran paired arms on frozen development seeds on every CI push. Found during adversarial self-audit and declared rather than left for the reviewer to find.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A17",
+        "section": "/latency/matched_baseline_meaning",
+        "old_rule": "The tracked agent is given the nominal background 5 ms so it holds no latency advantage or disadvantage.",
+        "new_rule": "The 5 ms cell is the reference cell for the decision metric. Because background latency has no dynamic effect under non-reactive agents, the tracked agent at 5 ms is slower than the background arrival stream rather than matched to it, and no parity is claimed.",
+        "reason": "The parity claim was contradicted by the module implementing it. This is the same defect class as the zero-latency control the review already rejected, so it is withdrawn now rather than reinterpreted after results.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A18",
+        "section": "/robustness_cell/purpose",
+        "old_rule": "The cell was described as isolating the tracked size share from background heterogeneity.",
+        "new_rule": "Setting background sizes to one lot also reduces mean background order size from 2.75 to 1.0 and lengthens per-order lifetime, so aggregate depth co-varies with size heterogeneity. ASSUMPTION_DRIVEN indicates sensitivity to the joint change, not to size heterogeneity alone.",
+        "reason": "The stated isolation was false. Declaring the confound is preferable to redefining the cell after the fact.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
+      },
+      {
+        "id": "A19",
+        "section": "/reproduction/environment_lock/sha256",
+        "old_rule": "The recorded digest was computed from a CRLF working copy and did not match the repository blob or the CI receipt.",
+        "new_rule": "The digest is the sha256 of the committed file, with .gitattributes pinning eol=lf so every checkout reproduces it, and the validator hashes the file rather than checking the length of the string.",
+        "reason": "The recorded digest was unreproducible by anyone checking out the repository, and CI had already printed the contradicting value at the same commit.",
+        "timestamp_utc": "2026-09-20T12:39:39Z",
+        "reviewer_reference": "PR #57 pre-run blocker and adversarial self-audit",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
+        },
+        "superseded_commit": "cc7627c"
       }
     ],
     "exposure": {
       "occurred": true,
       "declared_by": "reviewer, PR #57 pre-run blocker, 2026-09-20",
-      "what": "The --quick verification path executed the frozen mechanisms and cells on the first six frozen development seeds and printed a scientific verdict to the CI log.",
+      "what": "Two channels executed the frozen mechanisms on frozen development seeds before authorisation: the quick verification path, which also printed a verdict, and the automated test suite.",
       "scope": {
         "seeds_exposed": [
           0,
@@ -204,14 +303,47 @@
           2,
           3,
           4,
-          5
+          5,
+          7,
+          11
         ],
         "runs_executed": 108,
         "scale": "reduced: 1000 warm-up + 5000 events per run, not the frozen 10000 + 100000",
         "artifacts_written": [
           "runs.jsonl in the runner temp directory"
         ],
-        "verdict_printed": true
+        "verdict_printed": true,
+        "channels": [
+          {
+            "channel": "quick verification path",
+            "seeds": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "runs": 108,
+            "scale": "1000 warm-up + 5000 events",
+            "verdict_printed": true,
+            "evidence": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869"
+          },
+          {
+            "channel": "automated test suite",
+            "seeds": [
+              0,
+              1,
+              2,
+              3,
+              7,
+              11
+            ],
+            "scale": "200-4000 events, paired arms at the matched baseline and other latencies",
+            "verdict_printed": false,
+            "note": "Found during adversarial self-audit, not by the reviewer. The suite executed paired FIFO/PRO_RATA runs on frozen development seeds on every CI push. No verdict was computed and no metric value was printed unless a test failed."
+          }
+        ]
       },
       "evidence": {
         "workflow_run": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869",
@@ -221,7 +353,43 @@
       },
       "tuning_in_response": "none. No mechanism, metric, threshold, label, latency point, seed policy parameter or participant assumption was altered in response to the exposed verdict. The only changes are the ones required by the recovery instruction.",
       "must_be_reported_in_findings": true
-    }
+    },
+    "implementation_defects_corrected": [
+      {
+        "id": "D1",
+        "found_by": "adversarial self-audit",
+        "severity": "invalidating",
+        "defect": "Pro-rata largest-remainder ties were compared as floating-point fractional parts, so exactly equal remainders were ordered by float noise instead of arrival_sequence, violating the frozen tie-break rule.",
+        "measured": "12 contract-violating allocations in 5680 on sentinel runs; the error correlated with resting size, the channel under measurement.",
+        "fix": "Exact integer arithmetic: floor = (demand*size)//total, remainder key = (demand*size) % total.",
+        "verified": "120000 randomised cases against an exact-rational reference, zero mismatches."
+      },
+      {
+        "id": "D2",
+        "found_by": "adversarial self-audit",
+        "severity": "invalidating",
+        "defect": "The tracked display order was never replenished after a partial fill, so displayed size decayed below display_lots and the decay was mechanism-dependent.",
+        "measured": "Mean displayed size 7.72 lots under FIFO and 6.42 under pro-rata against a frozen display of 10.",
+        "fix": "Cancel and replace to full display size when resting quantity falls below target, which is the correct exchange semantics for a top-up.",
+        "verified": "Mean displayed size 9.15 and 8.81 after the fix; the residual shortfall is the latency window between a fill and the replacement landing."
+      },
+      {
+        "id": "D3",
+        "found_by": "adversarial self-audit",
+        "severity": "major",
+        "defect": "The decision rule failed open: an absent or short control cell was swallowed and silently suppressed LATENCY_DRIVEN or ASSUMPTION_DRIVEN, and a bootstrap on fewer than three pairs returned a NULL verdict from no data.",
+        "fix": "Both paths now raise, and decide() asserts a complete confirmation seed set in every cell it uses.",
+        "verified": "Regression tests for a short decision cell and for a missing control cell."
+      },
+      {
+        "id": "D4",
+        "found_by": "adversarial self-audit",
+        "severity": "major",
+        "defect": "The smoke path and the automated test suite executed frozen development seeds while the smoke log asserted that no frozen seed had been executed.",
+        "fix": "Controls take a seeds argument defaulting to sentinel seeds and never read cfg.seeds; all tests moved to sentinel space; a meta-test parses every test module and fails if a frozen seed reaches run_once or generate_stream.",
+        "verified": "Instrumented smoke run: 10 calls, 0 on frozen seeds."
+      }
+    ]
   },
   "research_question": "Under an identical prespecified synthetic order-flow realization and latency model, how do price-time priority and pro-rata allocation differ in execution quality and queue outcomes for a tracked passive parent order?",
   "hypotheses": {
@@ -322,7 +490,8 @@
       "style": "passive limit at best bid, replenished",
       "display_lots": 10,
       "reprice_rule": "cancel and replace when best bid moves",
-      "benchmark": "arrival mid price"
+      "benchmark": "arrival mid price",
+      "replenishment": "cancel and replace to full display size when resting quantity falls below min(display_lots, remaining); topping up loses time priority"
     },
     "declared_limitation": "Zero-intelligence agents do not inflate order size. The simulator therefore cannot reproduce strategic size inflation, which is the principal real-world behavioural consequence of pro-rata allocation."
   },
@@ -342,7 +511,7 @@
     "exchange_processing_ms": 0,
     "matched_baseline_ms": 5,
     "background_latency_dynamic_effect": "none under the frozen non-reactive participant assumption",
-    "matched_baseline_meaning": "the tracked agent is given the background's nominal 5 ms so it holds no latency advantage or disadvantage"
+    "matched_baseline_meaning": "reference cell for the decision metric; no latency parity is claimed, because background latency has no dynamic effect under non-reactive agents"
   },
   "seed_policy": {
     "seeds": [
@@ -555,7 +724,7 @@
   "controls": {
     "identity_run": {
       "description": "For each seed, the serialized pre-mechanism intent stream must be byte-identical across both mechanisms.",
-      "verification": "sha256 equality of the serialized pre-mechanism intent stream, per seed, per cell",
+      "verification": "Pre-run: sentinel seeds only. Post-run: sha256 equality of the per-run intent-stream digest between mechanisms for every executed (seed, latency, cell) triple in the retained records.",
       "state_independent_note": "The cancel intensity is applied per intent as a placement-time hazard rather than against live book state, which is what makes the identity claim testable."
     },
     "zero_latency_control": {
@@ -586,8 +755,12 @@
     "change": "order_size_distribution_lots replaced by a constant 1 lot for background intents",
     "assumption_removed": "background_order_size_heterogeneity",
     "tracked_display_lots_in_cell": 10,
-    "purpose": "Removes background order-size heterogeneity. With every background order at 1 lot and ties broken by arrival_sequence, largest-remainder pro-rata allocation among background orders coincides with arrival-order allocation, so the background size channel is switched off. The tracked display order of 10 lots is unchanged and remains the only non-unit resting order, so the cell isolates the tracked order's own size share from background heterogeneity. Pro-rata does not reduce to price-time priority in this cell.",
-    "applies_at_latency_ms": 5
+    "purpose": "Sets background order size to a constant 1 lot. This removes background size heterogeneity, and also reduces mean background order size from 2.75 to 1.0 lots and lengthens per-order lifetime, so aggregate book depth co-varies. ASSUMPTION_DRIVEN therefore indicates sensitivity to that joint change rather than to size heterogeneity alone. The tracked display order stays at 10 lots, so pro-rata does not reduce to price-time priority in this cell.",
+    "applies_at_latency_ms": 5,
+    "confounded_with": [
+      "aggregate_book_depth",
+      "background_order_lifetime"
+    ]
   },
   "run_matrix": {
     "main": {
@@ -644,11 +817,12 @@
     "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
     "environment_lock": {
       "file": "microstructure-sim/requirements.lock.txt",
-      "sha256": "2fac9e33a5f9cc2b0f8ff5fc6fb45763a3a2376bc51a543be514238c7e148ad5",
+      "sha256": "c84c7a438458d86077a4a71dfd394860118f964ba8775237e2e328527863e802",
       "install_command": "python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt",
       "runtime_identity": "CPython 3.12",
       "hash_enforced": true,
-      "frozen_before_confirmatory_run": true
+      "frozen_before_confirmatory_run": true,
+      "line_endings": "lf, pinned by .gitattributes"
     },
     "source_sha": "see authority.freeze_identity_rule"
   },

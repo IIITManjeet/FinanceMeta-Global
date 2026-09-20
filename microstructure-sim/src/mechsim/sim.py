@@ -160,6 +160,17 @@ def run_once(
         if pending_at is None and remaining > 0:
             pending_at = now + delay
 
+    def target_display() -> int:
+        return min(run_cfg.display_lots, remaining)
+
+    def needs_action() -> bool:
+        """True when the tracked order is absent, mispriced, or under-displayed."""
+        if remaining <= 0:
+            return False
+        if tracked_id is None or not book.is_live(tracked_id):
+            return True
+        return book.price_of(tracked_id) != book.best_bid() or book.size_of(tracked_id) < target_display()
+
     def act(now: float) -> None:
         nonlocal tracked_id, placements, pending_at, next_tracked_id
         pending_at = None
@@ -167,13 +178,16 @@ def run_once(
         if best_bid is None or remaining <= 0:
             return
         if tracked_id is not None and book.is_live(tracked_id):
-            if book.price_of(tracked_id) == best_bid:
+            if book.price_of(tracked_id) == best_bid and book.size_of(tracked_id) >= target_display():
                 return
+            # Topping up displayed quantity loses time priority on a real
+            # exchange, so the order is cancelled and replaced rather than
+            # silently grown in place.
             book.cancel(tracked_id)
             tracked_id = None
         next_tracked_id += 1
         tracked_id = next_tracked_id
-        book.add_limit(BUY, best_bid, min(run_cfg.display_lots, remaining), OWNER_TRACKED, order_id=tracked_id)
+        book.add_limit(BUY, best_bid, target_display(), OWNER_TRACKED, order_id=tracked_id)
         placements += 1
         queue_samples.append(
             float(book.volume_ahead(tracked_id))
@@ -198,14 +212,14 @@ def run_once(
                         executions.append((fill.price, fill.lots, fill.t_ms, fill.spread_ticks))
                 if tracked_id is not None and not book.is_live(tracked_id):
                     tracked_id = None
-                if remaining > 0 and tracked_id is None:
+                if needs_action():
                     schedule(t)
             else:
                 counters["market_no_op"] += 1
         else:
             before = book.best_bid()
             bump(_apply_background(book, intent, run_cfg))
-            if book.best_bid() != before and remaining > 0:
+            if book.best_bid() != before and needs_action():
                 schedule(t)
 
         current = book.mid()

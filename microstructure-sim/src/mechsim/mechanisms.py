@@ -62,15 +62,21 @@ def _allocate_pro_rata(resting: list[Resting], demand: int) -> dict[int, int]:
         return {o.order_id: o.size for o in ordered if o.size > 0}
 
     # Pass 1 - proportional floors, capped at resting size.
+    #
+    # Integer arithmetic throughout. demand * size_i / total in floating point
+    # loses precision in proportion to the magnitude of the share, so exactly
+    # equal fractional parts compare unequal and the arrival_seq tie-break never
+    # gets a chance to run. The remainder is kept as the exact numerator
+    # (demand * size_i) mod total instead.
     allocation: dict[int, int] = {}
-    remainders: list[tuple[float, int, int]] = []
+    remainders: list[tuple[int, int, int]] = []
     for order in ordered:
-        raw = demand * order.size / total
-        floor_lots = min(int(raw), order.size)
+        numerator = demand * order.size
+        floor_lots = min(numerator // total, order.size)
         if floor_lots < MIN_ALLOCATION_LOTS:
             floor_lots = 0
         allocation[order.order_id] = floor_lots
-        remainders.append((raw - int(raw), order.arrival_seq, order.order_id))
+        remainders.append((numerator % total, order.arrival_seq, order.order_id))
 
     remaining = demand - sum(allocation.values())
 

@@ -1,7 +1,7 @@
 # Market microstructure sprint: frozen protocol (one page)
 
-**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2` (supersedes v1) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
-**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v2`
+**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3` (supersedes v1, v2) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
+**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v3`
 Machine-readable detail and the append-only amendment log: `experiment_contract.json`
 
 ## Question
@@ -16,18 +16,23 @@ Under an identical prespecified synthetic order-flow realization and latency mod
 Zero-intelligence Poisson, **state-independent by design**: the whole intent stream is drawn before any book exists. Every LIMIT intent carries an immutable `intent_id`. Every CANCEL intent carries a `target_intent_id` fixed at generation, derived as `cancel_at = t + Exponential(0.14 x size)`; a cancel landing on an order that is filled, already cancelled or never placed is a **counted no-op**. Limit prices are **book-relative** offsets (1-5 ticks from the opposite best) resolved on arrival, so absolute prices may differ across arms while the intent is identical. Limit orders 1.2/level/s across 5 levels; market orders 0.9/side/s; sizes `{1: .5, 2: .25, 5: .15, 10: .1}` lots; tick 1. Initial ladder: bids 999-995, asks 1001-1005, 20 lots each, best bid 999 / best ask 1001, spread 2 ticks. Warm-up 10,000 events discarded; horizon 100,000 events, run in full regardless of fill state.
 
 ## Participants
-Background: non-adaptive zero-intelligence agents, no strategic response to mechanism. Tracked agent: passive buy parent of 500 lots, 10 displayed, cancel-replace on best-bid move, benchmarked to arrival mid.
+Background: non-adaptive zero-intelligence agents, no strategic response to mechanism. Tracked agent: passive buy parent of 500 lots, 10 displayed, benchmarked to arrival mid. It cancels and replaces on a best-bid move **and whenever its resting quantity falls below the display size after a partial fill**; topping up loses time priority, which is the correct exchange semantics.
 
 ## Latency
-Constant per-agent one-way, no jitter. Tracked agent swept over **{0, 1, 2, 5, 10, 25, 50, 100} ms**; background 5 ms; matched baseline **5 ms**, meaning the tracked agent holds neither advantage nor disadvantage. Background latency has **no dynamic effect** under non-reactive agents: a uniform shift of the background stream is invisible to every outcome.
+Constant per-agent one-way, no jitter. Tracked agent swept over **{0, 1, 2, 5, 10, 25, 50, 100} ms**; background 5 ms; reference cell **5 ms**. Background latency has **no dynamic effect** under non-reactive agents, so the tracked agent at 5 ms is slower than the background arrival stream rather than matched to it. **No latency parity is claimed at any cell.**
 
 ## Seeds
-**Development set:** seeds 0-29. Seeds 0-5 are **partially unblinded** and are recorded as exposed (see below).
+**Development set:** seeds 0-29. Seeds 0-5, 7 and 11 are **partially unblinded** and are recorded as exposed (see below).
 **Confirmation seed set:** seeds 100-129 (30), disjoint from the development set, pre-registered before any further outcome access. The confirmatory run uses this confirmation seed set.
 Failed seeds may **not** be discarded from either set. Bootstrap seed 424242. Run matrix, mechanisms, metrics, thresholds, labels, latency points and assumptions are all unchanged.
 
 ## Recorded exposure
-The former `--quick` verification path executed the frozen mechanisms and cells on development seeds 0-5, 108 runs at reduced scale (1,000 + 5,000 events), and printed a verdict to the CI log. That is a partial unblinding of the frozen comparison family, not a structural smoke test. The run, log and artifact are preserved and no history has been rewritten. Nothing was tuned in response. `--quick` is removed; `--smoke` replaces it and is outcome-blind by construction: sentinel seeds outside every frozen set, shape and invariant checks only, the decision rule never called, no run record and no verdict produced. The exposure is reported in the findings record.
+Two channels executed the frozen mechanisms on frozen development seeds before authorisation.
+
+1. The former `--quick` path: seeds 0-5, 108 runs at reduced scale (1,000 + 5,000 events), and it printed a verdict to the CI log. Declared by the reviewer.
+2. The automated test suite: seeds 0, 1, 2, 3, 7 and 11, paired arms at the reference cell and other latencies, on every CI push. No verdict computed. Found by adversarial self-audit and declared here.
+
+Both runs, logs and artifacts are preserved; no history has been rewritten, and nothing was tuned in response. `--quick` is removed and `--smoke` replaces it: sentinel seeds outside every frozen set, shape and invariant checks only, the decision rule never called, no run record and no verdict. Pre-run controls also run on sentinel seeds and never read the frozen sets, and a meta-test fails the build if any test module executes a frozen seed. The exposure is reported in `FINDINGS.md`.
 
 ## Metrics (all five primary, reported every run)
 fill probability · implementation shortfall (bps) · spread at execution · queue position **and** wait time · price impact.
@@ -39,13 +44,13 @@ Queue measures are **descriptive only** (lots under FIFO, a fraction under pro-r
 **Decision rule**, keyed to one metric to prevent post-hoc selection: implementation shortfall, lower-is-better, mean of per-seed differences `PRO_RATA - FIFO` at 5 ms, **paired by seed**, BCa bootstrap 95% CI, 10,000 resamples. Independent resampling of the arms is prohibited. Distributional summaries (median, IQR, p5, p95) required; means-only reporting prohibited.
 
 ## Controls
-1. **Identity run.** sha256 equality of the serialized pre-mechanism intent stream, per seed, per cell.
+1. **Identity run.** Pre-run on sentinel seeds; after the run, sha256 equality of the per-run intent-stream digest between mechanisms for **every executed cell** in the retained records. The pre-run check alone is structural, since the generator takes no mechanism argument.
 2. **Zero-latency control.** The tracked-agent-0 ms cell of the main grid. Because background latency has no dynamic effect, "all agents at 0 ms" and "tracked agent at 0 ms" coincide; this is not a distinct cell.
 3. **Analytic sanity case.** 6-lot aggressor meets resting X=2 (seq 1), Y=10 (seq 2): FIFO -> X 2, Y 4; pro-rata -> X 1, Y 5.
 4. **Deterministic replay.** Byte-identical per-run record from `(seed, config)`.
 
 ## Prespecified robustness cell (exactly one)
-`constant_order_size`: background sizes replaced by a constant 1 lot at 5 ms. This removes **background** size heterogeneity only. The tracked display order stays at 10 lots, so pro-rata does **not** reduce to price-time priority in this cell.
+`constant_order_size`: background sizes replaced by a constant 1 lot at 5 ms. This removes **background** size heterogeneity, and also reduces mean background order size from 2.75 to 1.0 and lengthens per-order lifetime, so **aggregate book depth co-varies**. ASSUMPTION_DRIVEN therefore indicates sensitivity to that joint change, not to size heterogeneity alone. The tracked display order stays at 10 lots, so pro-rata does **not** reduce to price-time priority in this cell.
 
 ## Run matrix
 Main 2 x 8 x 30 = **480**; robustness 2 x 1 x 30 = **60**; **total 540**. No run may be excluded after the fact; empty-book, timeout and degenerate runs are retained and reported, with at least three retained failure/edge cases described.

@@ -9,12 +9,12 @@
 - Builder(s): **Manjeet Pathak**
 - Lane: `research-workflow-tooling`
 - Governing gate: issue #51 (parent #47)
-- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2` (supersedes v1; amendments A1-A8 logged in `experiment_contract.json`)
-- Freeze identity: PR #57 head + tag `microstructure-freeze-v2` + CI artifact `microstructure-mechanism-contract-<sha>`
+- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3` (supersedes v1 and v2; amendments A1-A19 and implementation defects D1-D4 logged in `experiment_contract.json`)
+- Freeze identity: PR #57 head + tag `microstructure-freeze-v3` + CI artifact `microstructure-mechanism-contract-<sha>`
   (rule in `experiment_contract.json` `authority.freeze_identity_rule`; the SHA is not embedded because this file is part of the commit it would name)
 - Freeze timestamp UTC: 2026-09-19, amended 2026-09-20
 - Status: `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised pending independent pre-run review
-- Development seeds 0-29 with 0-5 exposed; confirmation seed set 100-129 pre-registered and disjoint
+- Development seeds 0-29 with 0-5, 7 and 11 exposed; confirmation seed set 100-129 pre-registered and disjoint, and it is what the confirmatory run uses
 
 ## 1. User + problem
 
@@ -31,7 +31,7 @@ A deterministic discrete-event limit-order-book simulator with a **mechanism-agn
 ## 4. Data contract
 
 - Source(s): **none. Fully synthetic.** No market data, no vendor feed, no personal data.
-- Exact version / snapshot identity: generated from frozen parameters plus seeds 0-29; the contract JSON *is* the data provenance.
+- Exact version / snapshot identity: generated from frozen parameters plus the confirmation seeds 100-129; the contract JSON *is* the data provenance.
 - Required fields per run: mechanism, seed, latency, all five primary metrics, degenerate-run flags, no-op counts, intent-stream sha256, record sha256.
 - Event identity: every limit intent carries an immutable `intent_id` and every cancel a fixed `target_intent_id`, both drawn before any book exists, so the arms consume the same intents rather than resolving a draw against their own diverging books.
 - Timestamp convention: simulated milliseconds from run start; no wall-clock dependence.
@@ -47,7 +47,7 @@ To satisfy #47's single-primary requirement without contradicting #51, one metri
 
 - Metric: **implementation shortfall (bps)**, Perold shortfall over the **whole** parent order, including an opportunity-cost mark on the unfilled remainder at the frozen horizon. It is defined for every retained run, including zero-fill, so no run is excluded or imputed and every seed pair is complete by construction.
 - Direction: `lower-is-better`
-- Evaluation cell: matched-latency baseline, 5 ms, seeds 0-29
+- Evaluation cell: reference cell at 5 ms, confirmation seeds 100-129
 - Decision rule: mean of per-seed differences `PRO_RATA - FIFO`, **paired by seed**, BCa bootstrap 95% CI, 10,000 resamples, bootstrap seed 424242. Independent resampling of the two arms is prohibited. A CI containing zero is declared **NULL** and is a valid completion.
 
 Executed-only shortfall was rejected: because the mechanisms can differ in fill probability, it would compare different selected subsets of the parent order and flatter whichever mechanism fills less.
@@ -88,4 +88,23 @@ python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-
 
 ## Amendments after freeze
 
-_Empty at initial freeze._ Any unavoidable correction is appended here with: timestamp, old rule, new rule, reason, whether any primary outcome had already been seen, and both commit SHAs. No prior rule is ever deleted.
+The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A19), each entry carrying
+timestamp, old rule, new rule, reason, reviewer reference, whether any frozen-scale outcome had been seen,
+and the superseded commit. No prior rule is ever deleted. Summary of what moved after the initial freeze:
+
+- **A1-A8** answer the first two pre-result reviews: parent-order decision metric defined for every run,
+  mechanism-independent intent schema, paired-by-seed inference, numerical negative-result rules,
+  zero-latency control redefined honestly, robustness rationale narrowed, edge semantics and ladder frozen
+  as fields, placeholders replaced by an identity rule.
+- **A9-A12** answer the accidental-exposure blocker: status moved to
+  `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`, the quick path replaced by an outcome-blind smoke, an exact
+  hash-enforced environment lock, and a disjoint confirmation seed set.
+- **A13-A19** follow an adversarial self-audit: replenishment semantics specified, pre-run controls moved
+  to sentinel seeds with identity asserted over the executed matrix instead, the decision rule made
+  fail-closed on incomplete cells, the exposure widened to seeds 7 and 11, the latency parity claim
+  withdrawn, the robustness-cell confound declared, and the environment-lock digest corrected to the
+  repository blob.
+
+Implementation defects found before any confirmatory run are recorded separately in
+`freeze.implementation_defects_corrected` (D1-D4). Two of them, the floating-point pro-rata tie-break and
+the missing display replenishment, would have invalidated the comparison had it been run.

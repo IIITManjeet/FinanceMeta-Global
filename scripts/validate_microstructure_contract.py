@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 from pathlib import Path
 
 
@@ -12,12 +14,22 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "evaluation/microstructure-mechanism-2026-09/experiment_contract.json"
 PROTOCOL_DOC = ROOT / "evaluation/microstructure-mechanism-2026-09/PROTOCOL.md"
 
-CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2"
+CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3"
 FROZEN_DATE = "2026-09-19"
 EXPECTED_STATUS = "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED"
 EXPECTED_CONFIRMATORY_STATUS = "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW"
 EXPECTED_CONFIRMATION_SEEDS = list(range(100, 130))
-EXPOSED_DEVELOPMENT_SEEDS = [0, 1, 2, 3, 4, 5]
+EXPOSED_DEVELOPMENT_SEEDS = [0, 1, 2, 3, 4, 5, 7, 11]
+EXPECTED_FREEZE_TAG = "microstructure-freeze-v3"
+EXPECTED_WARM_UP = 10000
+EXPECTED_HORIZON = 100000
+EXPECTED_PARENT_LOTS = 500
+EXPECTED_DISPLAY_LOTS = 10
+EXPECTED_BOOTSTRAP_SEED = 424242
+REQUIRED_DEFECT_IDS = {"D1", "D2", "D3", "D4"}
+EXPECTED_FLOW_RATES = {"limit_order_rate_per_level_per_sec": 1.2, "market_order_rate_per_side_per_sec": 0.9,
+                       "cancel_rate_per_resting_lot_per_sec": 0.14, "levels_from_opposite_best": 5}
+EXPECTED_SIZE_DISTRIBUTION = {"1": 0.5, "2": 0.25, "5": 0.15, "10": 0.1}
 EXPECTED_REPOSITORY_URL = "https://github.com/build-the-future-11/FinanceMeta-Global"
 
 EXPECTED_MECHANISM_IDS = {"FIFO", "PRO_RATA"}
@@ -114,6 +126,16 @@ def _validate_exposure(freeze: dict) -> None:
     )
 
 
+def _validate_defects(freeze: dict) -> None:
+    """Implementation defects found pre-run are declared, not quietly fixed."""
+    defects = freeze["implementation_defects_corrected"]
+    ids = {entry["id"] for entry in defects}
+    require(REQUIRED_DEFECT_IDS.issubset(ids), "a declared implementation defect was removed")
+    for entry in defects:
+        for key in ("defect", "fix", "verified", "severity", "found_by"):
+            require(str(entry.get(key, "")).strip() != "", f"defect {entry['id']} missing {key}")
+
+
 def _validate_amendments(freeze: dict) -> None:
     amendments = freeze["amendments"]
     require(isinstance(amendments, list), "amendment log must be a list")
@@ -128,6 +150,15 @@ def _validate_amendments(freeze: dict) -> None:
             f"amendment {entry['id']} cannot be made after frozen-scale outcomes were seen",
         )
         require(str(entry["old_rule"]).strip() != "", f"amendment {entry['id']} must retain the old rule")
+        require(
+            re.fullmatch(r"[0-9a-f]{7,40}", str(entry["superseded_commit"])) is not None,
+            f"amendment {entry['id']} superseded_commit must be a commit hash",
+        )
+    ids = [entry["id"] for entry in amendments]
+    require(
+        ids == [f"A{i}" for i in range(1, len(ids) + 1)],
+        "amendment log must stay append-only and contiguously numbered",
+    )
 
 
 def _validate_event_schema(flow: dict) -> None:
@@ -198,7 +229,8 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     authority = data["authority"]
     require(authority["builder"] == "Manjeet Pathak", "builder attribution removed or altered")
     require(authority["repository_url"] == EXPECTED_REPOSITORY_URL, "authoritative repository drift")
-    require(str(authority["freeze_tag"]).startswith("microstructure-freeze-v"), "freeze tag drift")
+    require(authority["freeze_tag"] == EXPECTED_FREEZE_TAG, "freeze tag drift")
+    require("microstructure-freeze-v2" in authority["superseded_tags"], "superseded tag dropped")
     require(authority["freeze_commit_sha"] is None, "a self-referential freeze SHA cannot be embedded")
     require("freeze_identity_rule" in authority, "freeze identity rule missing")
 
@@ -208,6 +240,7 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
         "results_inspected must stay true while the recorded exposure stands",
     )
     _validate_exposure(freeze)
+    _validate_defects(freeze)
     require(freeze["simulator_implemented_at_freeze"] is False, "simulator must not exist at brief freeze")
     require(freeze["parameters_may_change_after_results"] is False, "post-result parameter change cannot be permitted")
     require(
@@ -270,6 +303,20 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(len(ladder["bid_prices"]) == book["levels_per_side"], "ladder inconsistent with levels per side")
     require(ladder["lots_per_price"] == book["lots_per_level"], "ladder inconsistent with lots per level")
 
+    require(book["warm_up_events_discarded"] == EXPECTED_WARM_UP, "warm-up scale drift")
+    require(
+        data["horizon"]["events_per_run_after_warm_up"] == EXPECTED_HORIZON,
+        "frozen horizon drift: reduced scale is what caused the recorded exposure",
+    )
+    tracked = data["participants"]["tracked_agent"]
+    require(tracked["parent_quantity_lots"] == EXPECTED_PARENT_LOTS, "parent quantity drift")
+    require(tracked["display_lots"] == EXPECTED_DISPLAY_LOTS, "display size drift")
+    require("cancel and replace" in tracked["replenishment"], "replenishment semantics drift")
+    for key, value in EXPECTED_FLOW_RATES.items():
+        require(flow[key] == value, f"order-flow rate drift: {key}")
+    require(flow["order_size_distribution_lots"] == EXPECTED_SIZE_DISTRIBUTION, "order size distribution drift")
+    require(seeds["bootstrap_seed"] == EXPECTED_BOOTSTRAP_SEED, "bootstrap seed drift")
+
     fees = data["fees"]
     require(fees["maker_bps"] == 0.0 and fees["taker_bps"] == 0.0, "fee schedule drift")
 
@@ -296,7 +343,9 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
         "zero-latency control must not claim all agents at zero latency",
     )
     require(zero_latency["distinct_cell"] is False, "zero-latency control cell status drift")
-    require("intent stream" in controls["identity_run"]["verification"], "identity control scope drift")
+    identity_scope = controls["identity_run"]["verification"].lower()
+    require("sentinel" in identity_scope, "pre-run identity control must stay on sentinel seeds")
+    require("executed" in identity_scope, "identity must be asserted over the executed run matrix")
 
     robustness = data["robustness_cell"]
     require(robustness["count"] == 1, "exactly one prespecified robustness cell is permitted")
@@ -340,13 +389,27 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(isinstance(lock, dict), "environment lock must be frozen, not null")
     require(lock["hash_enforced"] is True, "environment lock must enforce hashes")
     require(lock["frozen_before_confirmatory_run"] is True, "lock must predate the confirmatory run")
-    require(len(str(lock["sha256"])) == 64, "environment lock digest missing")
-    require((ROOT / lock["file"]).is_file(), "environment lock file missing")
+    lock_path = ROOT / lock["file"]
+    require(lock_path.is_file(), "environment lock file missing")
+    actual = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    require(
+        actual == lock["sha256"],
+        f"environment lock digest does not match the file: contract {lock['sha256']}, file {actual}",
+    )
 
     boundary = str(data["claim_boundary"]).lower()
     require("synthetic simulation only" in boundary, "claim boundary must declare synthetic-only scope")
     for phrase in ("real-market performance", "realized returns", "exchange deployability"):
         require(phrase in boundary, f"claim boundary safeguard missing: {phrase}")
+
+    brief = doc_path.parent / "brief.md"
+    require(brief.is_file(), "builder brief missing")
+    brief_text = brief.read_text(encoding="utf-8").lower()
+    require("100-129" in brief_text, "brief must name the confirmation seed set")
+    require(
+        "seeds 0-29" not in brief_text.replace("development seeds 0-29", ""),
+        "brief must not present the exposed development seeds as the evaluation set",
+    )
 
     require(doc_path.is_file(), "protocol document missing")
     text = doc_path.read_text(encoding="utf-8").lower()

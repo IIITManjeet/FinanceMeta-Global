@@ -6,6 +6,10 @@ import dataclasses
 
 import pytest
 
+
+# Sentinel seeds only - never a frozen development or confirmation seed.
+SENTINEL = (900_000_201, 900_000_202, 900_000_203, 900_000_204, 900_000_205)
+
 from mechsim.contract import load_config
 from mechsim.flow import (
     BOOK_RELATIVE,
@@ -26,7 +30,7 @@ def cfg():
 
 @pytest.fixture(scope="module")
 def stream(cfg):
-    return generate_stream(cfg, seed=0, n_events=4000)
+    return generate_stream(cfg, seed=SENTINEL[0], n_events=4000)
 
 
 def test_every_cancel_names_a_limit_that_exists(stream) -> None:
@@ -71,13 +75,13 @@ def test_stream_is_time_ordered(stream) -> None:
 
 
 def test_stream_is_deterministic_for_a_seed(cfg) -> None:
-    a = stream_digest(generate_stream(cfg, 3, 2000))
-    b = stream_digest(generate_stream(cfg, 3, 2000))
+    a = stream_digest(generate_stream(cfg, SENTINEL[2], 2000))
+    b = stream_digest(generate_stream(cfg, SENTINEL[2], 2000))
     assert a == b
 
 
 def test_different_seeds_give_different_streams(cfg) -> None:
-    digests = {stream_digest(generate_stream(cfg, s, 2000)) for s in range(5)}
+    digests = {stream_digest(generate_stream(cfg, s, 2000)) for s in SENTINEL[:5]}
     assert len(digests) == 5
 
 
@@ -106,5 +110,5 @@ def test_all_three_intent_kinds_are_present(stream) -> None:
 
 def test_constant_size_cell_yields_unit_background_orders(cfg) -> None:
     unit = dataclasses.replace(cfg, size_distribution={"1": 1.0})
-    later = [i for i in generate_stream(unit, 0, 3000)[10:] if i.kind == KIND_LIMIT]
+    later = [i for i in generate_stream(unit, SENTINEL[0], 3000)[10:] if i.kind == KIND_LIMIT]
     assert {i.size for i in later} == {1}

@@ -92,3 +92,28 @@ def test_run_matrix_size_is_unchanged(cfg) -> None:
 def test_confirmation_set_is_thirty_disjoint_seeds(cfg) -> None:
     assert len(cfg.confirmation_seeds) == 30
     assert not (set(cfg.confirmation_seeds) & set(cfg.seeds))
+
+
+def test_no_test_module_executes_a_frozen_seed(cfg) -> None:
+    """Meta-guard. Tests run in CI, so a frozen seed here is an outcome leak.
+
+    This is how development seeds 7 and 11 were exposed: the suite itself ran
+    paired comparisons on them at the matched baseline.
+    """
+    frozen = set(cfg.seeds) | set(cfg.confirmation_seeds)
+    offenders = []
+    for path in sorted(Path(__file__).parent.glob("test_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if name not in {"run_once", "generate_stream", "stream_digest"}:
+                continue
+            values = [a.value for a in node.args if isinstance(a, ast.Constant)]
+            values += [k.value.value for k in node.keywords
+                       if k.arg == "seed" and isinstance(k.value, ast.Constant)]
+            for v in values:
+                if isinstance(v, int) and v in frozen:
+                    offenders.append(f"{path.name}:{node.lineno} -> seed {v}")
+    assert not offenders, "tests must not execute frozen seeds: " + "; ".join(offenders)

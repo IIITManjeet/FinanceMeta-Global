@@ -20,8 +20,13 @@ def main(argv: list[str] | None = None) -> int:
     p_run = sub.add_parser("run", help="execute a single run and print its record")
     p_run.add_argument("--contract", type=Path, default=None)
     p_run.add_argument("--mechanism", choices=MECHANISMS, default=FIFO)
-    p_run.add_argument("--seed", type=int, default=0)
+    p_run.add_argument("--seed", type=int, required=True)
     p_run.add_argument("--latency-ms", type=int, default=5)
+    p_run.add_argument(
+        "--i-am-authorised-to-run-a-frozen-seed",
+        action="store_true",
+        help="required to execute a development or confirmation seed",
+    )
 
     p_verify = sub.add_parser("verify", help="run the four frozen controls only")
     p_verify.add_argument("--contract", type=Path, default=None)
@@ -40,6 +45,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0
 
+    frozen = set(cfg.seeds) | set(cfg.confirmation_seeds)
+    if args.seed in frozen and not args.i_am_authorised_to_run_a_frozen_seed:
+        raise SystemExit(
+            f"refusing to run frozen seed {args.seed}: this would produce an outcome on a "
+            "development or confirmation seed. Use a sentinel seed, or pass "
+            "--i-am-authorised-to-run-a-frozen-seed if a run has been authorised."
+        )
     result = run_once(cfg, args.mechanism, args.seed, args.latency_ms)
     print(json.dumps(result.to_record(), indent=2, sort_keys=True))
     return 0

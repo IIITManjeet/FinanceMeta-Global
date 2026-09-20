@@ -22,9 +22,11 @@ import dataclasses
 import hashlib
 import json
 import platform
+import re
 import subprocess
 import sys
 import time
+from importlib import metadata
 from pathlib import Path
 
 from .analysis import decide, distribution_summary
@@ -147,18 +149,51 @@ def smoke(cfg) -> int:
     return 0
 
 
+def _require_authorisation(contract_path: Path) -> None:
+    """Refuse the confirmatory run until the contract records an authorisation.
+
+    Nothing used to read this field. The contract could say NOT_AUTHORIZED while
+    the confirmatory command ran to completion, which made the requirement to
+    authorise execution only after independent review a convention with nothing
+    behind it.
+    """
+    data = json.loads(contract_path.read_text(encoding="utf-8"))
+    status = data.get("confirmatory_status", "")
+    if not status.startswith("AUTHORIZED"):
+        raise SystemExit(
+            f"refusing to run: confirmatory_status is {status!r}. "
+            "The 540-cell comparison runs only once the contract records an "
+            "AUTHORIZED status, set after independent pre-run review. "
+            "Use --smoke for an outcome-blind pipeline check."
+        )
+
+
+def _lock_pins(lock_path: Path) -> dict[str, str]:
+    """Package pins declared in the lock file."""
+    text = lock_path.read_text(encoding="utf-8")
+    return {n.lower().replace("_", "-"): v for n, v in re.findall(r"^([A-Za-z0-9_.-]+)==([^\s\\]+)", text, re.M)}
+
+
 def _require_locked_runtime(cfg, contract_path: Path) -> None:
     """Gate the confirmatory run on the frozen runtime and lock, before it runs.
 
-    The contract records an environment lock; recording it after the fact is a
-    receipt, not a lock. These checks fail closed before any cell executes.
+    Three checks, all fail-closed, all before any cell executes:
+
+      1. the interpreter is the frozen major.minor,
+      2. the lock file hashes to the digest recorded in the contract,
+      3. every distribution actually importable here matches the lock.
+
+    The third one matters most. Hashing the lock file only proves the file has
+    not been edited; it says nothing about what pip put in site-packages. An
+    audit defeated the earlier version of this gate by installing an unhashed
+    numpy over a correctly locked environment, and the gate still reported OK.
     """
     data = json.loads(contract_path.read_text(encoding="utf-8"))
     lock = data["reproduction"]["environment_lock"]
 
     expected = str(lock["runtime_identity"]).replace("CPython", "").strip()
     actual = platform.python_version()
-    if not actual.startswith(expected):
+    if tuple(actual.split(".")[:2]) != tuple(expected.split(".")[:2]):
         raise SystemExit(
             f"refusing to run: frozen runtime identity is {lock['runtime_identity']}, "
             f"this interpreter is CPython {actual}"
@@ -173,7 +208,25 @@ def _require_locked_runtime(cfg, contract_path: Path) -> None:
             f"refusing to run: environment lock digest mismatch. "
             f"contract {lock['sha256']}, file {digest}"
         )
-    print(f"Runtime gate: CPython {actual}, lock {digest[:12]} ... OK")
+
+    drift = []
+    for name, pinned in sorted(_lock_pins(lock_path).items()):
+        try:
+            installed = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            drift.append(f"{name}: pinned {pinned}, not installed")
+            continue
+        if installed != pinned:
+            drift.append(f"{name}: pinned {pinned}, installed {installed}")
+    if drift:
+        raise SystemExit(
+            "refusing to run: the installed environment does not match the lock.\n  "
+            + "\n  ".join(drift)
+            + "\nReinstall with: python -m pip install --require-hashes -r "
+            + lock["file"]
+        )
+
+    print(f"Runtime gate: CPython {actual}, lock {digest[:12]}, {len(_lock_pins(lock_path))} pins verified ... OK")
 
 
 def build_matrix(cfg) -> list[tuple[str, int, int, str, dict | None]]:
@@ -241,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.smoke:
         return smoke(cfg)
 
+    _require_authorisation(contract_path)
     _require_locked_runtime(cfg, contract_path)
 
     args.out.mkdir(parents=True, exist_ok=True)

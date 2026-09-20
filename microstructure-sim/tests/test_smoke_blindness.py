@@ -124,9 +124,11 @@ def test_no_test_module_executes_a_frozen_seed(cfg) -> None:
                     values.append(a.value)
             values += [k.value.value for k in node.keywords
                        if k.arg == "seed" and isinstance(k.value, ast.Constant)]
-            authorised = any(k.arg == "allow_frozen_seed" for k in node.keywords)
+            # No exemption for allow_frozen_seed. The previous version of this
+            # scanner whitelisted exactly that keyword, which is how a test
+            # executing confirmation seed 100 passed the backstop unnoticed.
             for v in values:
-                if isinstance(v, int) and v in frozen and not authorised:
+                if isinstance(v, int) and v in frozen:
                     offenders.append(f"{path.name}:{node.lineno} -> seed {v}")
     assert not offenders, "tests must not execute frozen seeds: " + "; ".join(offenders)
 
@@ -141,12 +143,50 @@ def test_run_once_refuses_a_frozen_seed_at_runtime(cfg) -> None:
             run_once(probe, "FIFO", seed, 5)
 
 
-def test_run_once_allows_a_frozen_seed_when_authorised(cfg) -> None:
-    import dataclasses
-    from mechsim.sim import run_once
-    probe = dataclasses.replace(cfg, warm_up_events=50, horizon_events=100)
-    result = run_once(probe, "FIFO", cfg.confirmation_seeds[0], 5, allow_frozen_seed=True)
-    assert result.seed == cfg.confirmation_seeds[0]
+def test_allow_frozen_seed_reaches_past_the_guard_without_simulating(cfg, monkeypatch) -> None:
+    """Prove the authorised branch is reachable without producing an outcome.
+
+    An earlier version of this test ran a real confirmation seed to prove the
+    bypass worked. That executed a pre-registered seed on every CI push, which
+    is the very thing the guard exists to prevent, and the static scanner was
+    written to exempt it. It is now proven by interception instead: the stream
+    generator raises immediately, so control demonstrably passes the guard and
+    nothing is simulated.
+    """
+    import mechsim.sim as sim
+
+    class _PastTheGuard(Exception):
+        pass
+
+    def _intercept(*args, **kwargs):
+        raise _PastTheGuard
+
+    monkeypatch.setattr(sim, "generate_stream", _intercept)
+
+    with pytest.raises(_PastTheGuard):
+        sim.run_once(cfg, "FIFO", cfg.confirmation_seeds[0], 5, allow_frozen_seed=True)
+
+    # Without the flag the guard fires first, so the generator is never reached.
+    with pytest.raises(ValueError, match="refusing to run frozen seed"):
+        sim.run_once(cfg, "FIFO", cfg.confirmation_seeds[0], 5)
+
+
+def test_only_the_confirmatory_runner_may_authorise_a_frozen_seed() -> None:
+    """allow_frozen_seed=True must appear in exactly one place in the package."""
+    src = Path(inspect.getsourcefile(smoke)).parent
+    offenders = []
+    for path in sorted(src.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for kw in node.keywords:
+                if (kw.arg == "allow_frozen_seed"
+                        and isinstance(kw.value, ast.Constant)
+                        and kw.value.value is True
+                        and path.name != "reproduce.py"):
+                    offenders.append(f"{path.name}:{node.lineno}")
+    assert not offenders, "only reproduce.py may authorise a frozen seed: " + "; ".join(offenders)
 
 
 def test_robustness_latency_comes_from_the_contract(cfg) -> None:
@@ -154,3 +194,23 @@ def test_robustness_latency_comes_from_the_contract(cfg) -> None:
     from mechsim.reproduce import build_matrix
     latencies = {job[2] for job in build_matrix(cfg) if job[3] == "robustness"}
     assert latencies == {cfg.robustness_latency_ms}
+
+
+def test_confirmatory_run_refuses_without_authorisation(cfg, tmp_path) -> None:
+    """Nothing used to read confirmatory_status, so the gate was a convention."""
+    from mechsim.reproduce import main as reproduce_main
+    with pytest.raises(SystemExit, match="confirmatory_status"):
+        reproduce_main(["--out", str(tmp_path / "results")])
+    assert not (tmp_path / "results").exists(), "no output may be created before authorisation"
+
+
+def test_runtime_gate_rejects_a_drifted_environment(cfg, monkeypatch) -> None:
+    """Hashing the lock file proves nothing about site-packages."""
+    import mechsim.reproduce as R
+    from mechsim.contract import DEFAULT_CONTRACT
+
+    real = R.metadata.version
+    monkeypatch.setattr(R.metadata, "version",
+                        lambda n: "99.0.0" if n == "numpy" else real(n))
+    with pytest.raises(SystemExit, match="does not match the lock"):
+        R._require_locked_runtime(cfg, Path(DEFAULT_CONTRACT))

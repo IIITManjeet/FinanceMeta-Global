@@ -1,7 +1,7 @@
 # Market microstructure sprint: frozen protocol (one page)
 
-**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4` (supersedes v1, v2, v3) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
-**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v4`
+**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5` (supersedes v1 to v4) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
+**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v5`
 Machine-readable detail and the append-only amendment log: `experiment_contract.json`
 
 ## Question
@@ -75,7 +75,7 @@ Synthetic simulation only. Conclusions hold solely for these two mechanisms unde
 Environment is pinned by an exact hash-enforced lock frozen before the confirmatory run, on CPython 3.12:
 ```
 python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt
-python -m pip install -e microstructure-sim --no-deps
+python -m pip install -e microstructure-sim --no-deps --no-build-isolation
 python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json
 ```
 Outcome-blind pipeline check, safe before authorisation: `python -m mechsim.reproduce --smoke`

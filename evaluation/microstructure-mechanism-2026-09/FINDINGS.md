@@ -5,7 +5,7 @@ cell has been inspected, so there is no result in this document yet. It exists
 now because the contract obliges the exposure below to be reported here, and
 that obligation should not point at a file that does not exist.
 
-Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4` (amendments A1-A24, defects D1-D8) · gate issue #51 · PR #57
+Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5` (amendments A1-A28, defects D1-D12) · gate issue #51 · PR #57
 
 ## Primary result
 
@@ -52,8 +52,9 @@ confirmatory run uses.
 
 ## Implementation defects corrected before any run
 
-Found by adversarial self-audit, not by the reviewer. Recorded because three of
-them (D1, D2 and D5) would have invalidated the comparison had it been run.
+Found by adversarial self-audit, not by the reviewer. Recorded because five of
+them (D1, D2, D5, D11 and D12) would have invalidated the comparison had it been
+run.
 
 - **D1 — pro-rata tie-break decided by floating-point noise.** Exactly equal
   largest-remainder fractions were ordered by float error rather than
@@ -112,6 +113,36 @@ Found in a second adversarial audit, after the first four were fixed:
   development or confirmation seed at runtime unless the caller explicitly opts
   in, which only the authorised confirmatory run does; the scan is retained as a
   backstop and now inspects only the seed position.
+
+Found in a third adversarial audit, after the second round was fixed:
+
+- **D9 — a test added in the commit that closed the exposure gaps executed
+  confirmation seed 100** on every CI run, and the static scanner added
+  alongside it was written to exempt exactly that call. The test now proves the
+  authorised branch is reachable by intercepting the stream generator, so
+  nothing is simulated, and the exemption is gone. The single touch is declared
+  in the exposure record: one arm, 150 events, no pairing, no comparison, no
+  verdict, and the reduced-scale stream is not a prefix of the frozen one. The
+  confirmation seed set is deliberately left unchanged, because altering a
+  pre-registered seed set in response would itself be the post-hoc change the
+  freeze exists to prevent.
+- **D10 — the lock claimed a source-build fallback was impossible while every
+  entry carried an sdist hash**, and `PROTOCOL.md` — the document that governs —
+  omitted `--no-build-isolation`, so following the frozen protocol literally
+  fetched an unpinned build backend from the network. The lock is now
+  wheels-only with coverage extended to manylinux aarch64 and musllinux, and one
+  identical install command appears in the protocol, the README, CI and the
+  contract.
+- **D11 — the pre-run gate never looked at what was installed.** It hashed the
+  lock file and checked the interpreter string; an unhashed package installed
+  over a correctly locked environment passed, and the gate reported OK. It now
+  verifies every installed distribution against the lock pins and fails closed
+  naming each drift.
+- **D12 — no code read `confirmatory_status`.** The contract could record
+  NOT_AUTHORIZED while the confirmatory command ran to completion, so the
+  requirement to authorise execution only after independent review had nothing
+  behind it. The confirmatory path now refuses to start unless the contract
+  records an AUTHORIZED status, before any output directory is created.
 
 ## Limitations declared before the run
 

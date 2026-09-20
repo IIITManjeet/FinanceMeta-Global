@@ -1,52 +1,49 @@
 # Exact runtime, build and test lock for the confirmatory run.
 # Frozen before any outcome-producing execution, per the pre-run blocker on PR #57.
 #
-# Runtime identity: CPython 3.12. reproduce.py refuses to run under anything else
-# and verifies this file against the digest recorded in the contract before any
-# cell executes.
+# Runtime identity: CPython 3.12. reproduce.py refuses to start unless the
+# interpreter matches, this file hashes to the digest recorded in the contract,
+# AND every distribution actually importable in the environment matches the pins
+# below. The first two alone are not a lock: they do not look at site-packages.
 #
 # Install, in this order:
 #   python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt
 #   python -m pip install -e microstructure-sim --no-deps --no-build-isolation
 #
-# --no-build-isolation matters: without it pip fetches the build backend fresh and
-# unhashed on every install, outside this lock entirely. setuptools and wheel are
-# pinned here so the build toolchain is covered too.
+# --no-build-isolation is required, not optional. Without it pip fetches the build
+# backend fresh and unhashed on every install, outside this lock entirely.
+# pyproject.toml declares exactly the setuptools and wheel versions pinned here,
+# so the isolated and non-isolated paths cannot disagree.
 #
-# Every entry carries a wheel hash, so --require-hashes cannot silently fall back to
-# building an sdist through an unpinned PEP 517 environment.
+# Wheels only, by design. An sdist hash would let --require-hashes validate a
+# source build on any platform whose wheel is absent, which is the opposite of a
+# lock. A platform not listed below fails cleanly instead of degrading silently.
 #
-# Wheel coverage: cp312 on manylinux x86_64, macOS arm64, macOS x86_64 and win_amd64,
-# plus pure-python wheels and sdists.
+# cp312 wheel coverage: manylinux x86_64 and aarch64, musllinux x86_64 and aarch64,
+# macOS arm64 and x86_64, win_amd64, plus pure-python wheels.
 
 numpy==2.0.1 \
-    --hash=sha256:485b87235796410c3519a699cfe1faab097e509e90ebb05dcd098db2ae87e7b3 \
+    --hash=sha256:529af13c5f4b7a932fb0e1911d3a75da204eff023ee5e0e79c1751564221a5c8 \
     --hash=sha256:5daab361be6ddeb299a918a7c0864fa8618af66019138263247af405018b04e1 \
     --hash=sha256:6790654cb13eab303d8402354fabd47472b24635700f631f041bd0b65e37298a \
     --hash=sha256:6bf4e6f4a2a2e26655717a1983ef6324f2664d7011f6ef7482e8c0b3d51e82ac \
     --hash=sha256:7d6fddc5fe258d3328cd8e3d7d3e02234c5d70e01ebe377a6ab92adb14039cb4 \
-    --hash=sha256:bb2124fdc6e62baae159ebcfa368708867eb56806804d005860b6007388df171
+    --hash=sha256:99d0d92a5e3613c33a5f01db206a33f8fdf3d71f2912b0de1739894668b7a93b \
+    --hash=sha256:bb2124fdc6e62baae159ebcfa368708867eb56806804d005860b6007388df171 \
+    --hash=sha256:cbab9fc9c391700e3e1287666dfd82d8666d10e69a6c4a09ab97574c0b7ee0a7
 setuptools==72.2.0 \
-    --hash=sha256:80aacbf633704e9c8bfa1d99fa5dd4dc59573efcf9e4042c13d3bcef91ac2ef9 \
     --hash=sha256:f11dd94b7bae3a156a95ec151f24e4637fb4fa19c878e4d191bfb8b2d82728c4
 wheel==0.45.1 \
-    --hash=sha256:661e1abd9198507b1409a20c02106d9670b2576e916d58f520316666abca6729 \
     --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248
 pytest==8.4.2 \
-    --hash=sha256:86c0d0b93306b961d58d62a4db4879f27fe25513d4b969df351abdddb3c30e01 \
     --hash=sha256:872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79
 iniconfig==2.3.0 \
-    --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
     --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
 packaging==24.1 \
-    --hash=sha256:026ed72c8ed3fcce5bf8950572258698927fd1dbda10a5e981cdf0ac37f4f002 \
     --hash=sha256:5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124
 pluggy==1.6.0 \
-    --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
 pygments==2.18.0 \
-    --hash=sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199 \
     --hash=sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a
 colorama==0.4.6 \
-    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6

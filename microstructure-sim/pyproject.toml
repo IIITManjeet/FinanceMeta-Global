@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools==72.2.0", "wheel==0.45.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,12 +8,12 @@ version = "0.1.0"
 description = "Deterministic limit-order-book simulator for a frozen two-mechanism allocation comparison"
 readme = "README.md"
 license = {file = "LICENSE"}
-requires-python = ">=3.11"
+requires-python = "==3.12.*"
 authors = [{name = "Manjeet Pathak"}]
-dependencies = ["numpy>=2.0,<3"]
+dependencies = ["numpy==2.0.1"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3,<9"]
+dev = ["pytest==8.4.2"]
 
 [project.scripts]
 mechsim = "mechsim.cli:main"

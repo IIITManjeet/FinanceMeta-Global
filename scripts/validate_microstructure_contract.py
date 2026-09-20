@@ -14,19 +14,19 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "evaluation/microstructure-mechanism-2026-09/experiment_contract.json"
 PROTOCOL_DOC = ROOT / "evaluation/microstructure-mechanism-2026-09/PROTOCOL.md"
 
-CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4"
+CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5"
 FROZEN_DATE = "2026-09-19"
 EXPECTED_STATUS = "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED"
 EXPECTED_CONFIRMATORY_STATUS = "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW"
 EXPECTED_CONFIRMATION_SEEDS = list(range(100, 130))
 EXPOSED_DEVELOPMENT_SEEDS = [0, 1, 2, 3, 4, 5, 7, 11]
-EXPECTED_FREEZE_TAG = "microstructure-freeze-v4"
+EXPECTED_FREEZE_TAG = "microstructure-freeze-v5"
 EXPECTED_WARM_UP = 10000
 EXPECTED_HORIZON = 100000
 EXPECTED_PARENT_LOTS = 500
 EXPECTED_DISPLAY_LOTS = 10
 EXPECTED_BOOTSTRAP_SEED = 424242
-REQUIRED_DEFECT_IDS = {"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"}
+REQUIRED_DEFECT_IDS = {f"D{i}" for i in range(1, 13)}
 EXPECTED_FLOW_RATES = {"limit_order_rate_per_level_per_sec": 1.2, "market_order_rate_per_side_per_sec": 0.9,
                        "cancel_rate_per_resting_lot_per_sec": 0.14, "levels_from_opposite_best": 5}
 EXPECTED_SIZE_DISTRIBUTION = {"1": 0.5, "2": 0.25, "5": 0.15, "10": 0.1}
@@ -230,7 +230,7 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(authority["builder"] == "Manjeet Pathak", "builder attribution removed or altered")
     require(authority["repository_url"] == EXPECTED_REPOSITORY_URL, "authoritative repository drift")
     require(authority["freeze_tag"] == EXPECTED_FREEZE_TAG, "freeze tag drift")
-    require({"microstructure-freeze-v2", "microstructure-freeze-v3"}.issubset(set(authority["superseded_tags"])), "superseded tag dropped")
+    require({"microstructure-freeze-v2", "microstructure-freeze-v3", "microstructure-freeze-v4"}.issubset(set(authority["superseded_tags"])), "superseded tag dropped")
     require(authority["freeze_commit_sha"] is None, "a self-referential freeze SHA cannot be embedded")
     require("freeze_identity_rule" in authority, "freeze identity rule missing")
 
@@ -392,6 +392,10 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(lock["build_backend_pinned"] is True, "the build backend must stay pinned")
     require(lock["sdist_fallback_possible"] is False, "every pin must carry a wheel hash")
     require("--no-build-isolation" in lock["install_command"], "install must not re-fetch the backend")
+    require(lock["sdist_hashes_present"] is False, "an sdist hash would permit an unpinned source build")
+    require(lock["installed_environment_verified_before_run"] is True,
+            "the gate must check site-packages, not only the lock file")
+    require("AUTHORIZED" in lock["verified_before_run"], "the run must be gated on authorisation")
     lock_path = ROOT / lock["file"]
     require(lock_path.is_file(), "environment lock file missing")
     actual = hashlib.sha256(lock_path.read_bytes()).hexdigest()

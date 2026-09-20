@@ -1,6 +1,6 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4",
-  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v3",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v4",
   "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
   "amended_date": "2026-09-20",
@@ -11,14 +11,15 @@
     "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
     "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
     "pull_request": "build-the-future-11/FinanceMeta-Global#57",
-    "freeze_tag": "microstructure-freeze-v4",
+    "freeze_tag": "microstructure-freeze-v5",
     "superseded_tags": [
       "microstructure-freeze-v1",
       "microstructure-freeze-v2",
-      "microstructure-freeze-v3"
+      "microstructure-freeze-v3",
+      "microstructure-freeze-v4"
     ],
     "freeze_commit_sha": null,
-    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v4 (git rev-parse microstructure-freeze-v4^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1, v2 and v3 identify superseded documents."
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v5 (git rev-parse microstructure-freeze-v5^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1 to v4 identify superseded documents."
   },
   "freeze": {
     "results_inspected": true,
@@ -361,6 +362,62 @@
           "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure."
         },
         "superseded_commit": "547b103"
+      },
+      {
+        "id": "A25",
+        "section": "/reproduction/environment_lock",
+        "old_rule": "The lock carried a wheel hash and an sdist hash for every entry while claiming a source-build fallback was impossible.",
+        "new_rule": "The lock is wheels-only. Platform coverage spans manylinux x86_64 and aarch64, musllinux x86_64 and aarch64, macOS arm64 and x86_64, and win_amd64. A platform without a listed wheel fails cleanly rather than building from source.",
+        "reason": "An sdist hash validates a source build, which pulls an unpinned build toolchain. Keeping sdist hashes while claiming no fallback was possible made the claim false.",
+        "timestamp_utc": "2026-09-20T13:41:01Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure and the single confirmation-seed touch recorded there."
+        },
+        "superseded_commit": "1c9186b"
+      },
+      {
+        "id": "A26",
+        "section": "microstructure-sim/pyproject.toml",
+        "old_rule": "The package declared numpy>=2.0,<3, pytest>=8.3,<9, requires-python>=3.11 and setuptools>=75, none matching the lock, with the pinned setuptools below the declared floor.",
+        "new_rule": "The package declares exact pins identical to the lock, including the build backend, and requires-python is fixed to the 3.12 series.",
+        "reason": "The lock only bound the install because of the order and flags of two README lines. Declared metadata that disagrees with the lock means the most natural install command silently produces an unpinned environment.",
+        "timestamp_utc": "2026-09-20T13:41:01Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure and the single confirmation-seed touch recorded there."
+        },
+        "superseded_commit": "1c9186b"
+      },
+      {
+        "id": "A27",
+        "section": "/reproduction/environment_lock/verified_before_run and /confirmatory_status",
+        "old_rule": "The pre-run gate checked the interpreter version string and the lock file digest. Nothing read confirmatory_status.",
+        "new_rule": "The confirmatory path refuses to start unless the contract records an AUTHORIZED status, the interpreter matches the frozen series, the lock file matches its recorded digest, and every installed distribution matches the lock pins.",
+        "reason": "Hashing the lock file proves the file was not edited; it says nothing about site-packages, and an audit defeated the old gate with an unhashed package. An authorisation status nothing reads is not a gate.",
+        "timestamp_utc": "2026-09-20T13:41:01Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure and the single confirmation-seed touch recorded there."
+        },
+        "superseded_commit": "1c9186b"
+      },
+      {
+        "id": "A28",
+        "section": "/reproduction/command and the install documentation",
+        "old_rule": "PROTOCOL.md gave an install command without --no-build-isolation, disagreeing with README.md, the CI workflow and this contract.",
+        "new_rule": "One install command, identical in PROTOCOL.md, README.md, the CI workflow and this contract.",
+        "reason": "A reviewer following the frozen one-page protocol literally got an unpinned build backend from the network. The protocol is the document that governs, so it has to be the correct one.",
+        "timestamp_utc": "2026-09-20T13:41:01Z",
+        "reviewer_reference": "PR #57 pre-run blocker, steps 3, 4 and 7",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. See freeze.exposure for the reduced-scale development exposure and the single confirmation-seed touch recorded there."
+        },
+        "superseded_commit": "1c9186b"
       }
     ],
     "exposure": {
@@ -419,9 +476,28 @@
               "678cb1a",
               "cc7627c"
             ]
+          },
+          {
+            "channel": "authorisation-bypass test, commit 1c9186b only",
+            "seeds": [
+              100
+            ],
+            "seed_set": "confirmation",
+            "runs": 1,
+            "arms": [
+              "FIFO"
+            ],
+            "scale": "50 warm-up + 100 events, single arm",
+            "verdict_printed": false,
+            "comparison_performed": false,
+            "note": "A test added in 1c9186b to prove the allow_frozen_seed bypass worked executed confirmation seed 100 once per CI run, and the static scanner was written to exempt exactly that call. Found by adversarial self-audit and declared here. Informational content is nil: one arm only, no pairing, no comparison, no decision rule, no verdict, and the reduced-scale intent stream is not a prefix of the frozen-scale stream because the generator batch size depends on the event count. The confirmation seed set is left unchanged, because altering a pre-registered seed set in response to this would itself be the kind of post-hoc change the freeze exists to prevent. If the reviewer prefers a fresh confirmation set, that is his call to make.",
+            "evidence": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35513231020"
           }
         ],
-        "runs_executed_note": "runs_executed=108 counts the quick-path channel only. The test-suite channel is counted separately under channels[1] as call sites times CI runs."
+        "runs_executed_note": "runs_executed=108 counts the quick-path channel only. The test-suite channel is counted separately under channels[1] as call sites times CI runs.",
+        "confirmation_seeds_touched": [
+          100
+        ]
       },
       "evidence": {
         "workflow_run": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869",
@@ -500,6 +576,38 @@
         "defect": "Protection against executing a frozen seed rested on a static scan of test modules, which an aliased constant, a loop variable, a computed value, a helper call, a renamed function or a conftest walks straight past. The scanned functions had no runtime guard of their own. The scanner also treated every integer argument as a seed, so latency_ms=5 read as development seed 5.",
         "fix": "run_once refuses a development or confirmation seed unless the caller passes allow_frozen_seed=True, which only the authorised confirmatory run does. The static scan is retained as a backstop and now inspects only the seed position.",
         "verified": "Runtime refusal tested for both frozen sets; authorised path tested to still work."
+      },
+      {
+        "id": "D9",
+        "found_by": "adversarial self-audit, third round",
+        "severity": "major",
+        "defect": "A test introduced in the commit that claimed to close the exposure gaps executed confirmation seed 100 on every CI run, and the static scanner added alongside it was coded to exempt precisely that call via its allow_frozen_seed keyword.",
+        "fix": "The test now proves the authorised branch is reachable by intercepting the stream generator, so control passes the guard and nothing is simulated. The scanner exemption is removed, and a new test asserts that allow_frozen_seed=True appears in exactly one place in the package.",
+        "verified": "Whole-suite instrumentation: frozen-seed calls are attempted twice and both raise; zero frozen-seed runs produce a record."
+      },
+      {
+        "id": "D10",
+        "found_by": "adversarial self-audit, third round",
+        "severity": "major",
+        "defect": "The environment lock claimed a source-build fallback was impossible while every one of its nine entries carried a valid sdist hash, so --require-hashes could validate a source build on any platform whose wheel was absent. PROTOCOL.md, the frozen one-page protocol, omitted --no-build-isolation, so following it literally fetched an unpinned build backend from the network mid-install. The pinned setuptools was also below the floor declared in the package's own pyproject.toml.",
+        "fix": "The lock is wheels-only, with cp312 coverage extended to manylinux x86_64 and aarch64, musllinux x86_64 and aarch64, macOS arm64 and x86_64, and win_amd64. An uncovered platform now fails cleanly instead of degrading into a source build. pyproject.toml declares exact pins matching the lock, including the build backend, so the isolated and non-isolated paths cannot disagree. PROTOCOL.md, README.md, the CI workflow and the contract now carry an identical install command.",
+        "verified": "Every pin checked against live PyPI metadata: no sdist hash remains. pip install --require-hashes resolves cleanly."
+      },
+      {
+        "id": "D11",
+        "found_by": "adversarial self-audit, third round",
+        "severity": "invalidating",
+        "defect": "The pre-run gate hashed the lock file and checked the interpreter version string, but never inspected what was actually installed. An unhashed, unpinned package installed over a correctly locked environment passed the gate, which reported OK and ran the controls to completion.",
+        "fix": "The gate now verifies that every distribution importable in the running environment matches the pins in the lock, and fails closed listing each drift.",
+        "verified": "Simulated a drifted numpy: the gate refuses and names the mismatch. A compliant environment passes with all nine pins verified."
+      },
+      {
+        "id": "D12",
+        "found_by": "adversarial self-audit, third round",
+        "severity": "invalidating",
+        "defect": "No code anywhere read confirmatory_status. The contract could record NOT_AUTHORIZED while the confirmatory command ran to completion, so the reviewer's requirement to authorise outcome execution only after independent review was a convention with nothing behind it.",
+        "fix": "The confirmatory path refuses to start unless the contract records an AUTHORIZED status, before the output directory is created or any control runs. The smoke path is unaffected.",
+        "verified": "The confirmatory command now exits with the refusal and creates no output; --smoke still passes."
       }
     ]
   },
@@ -929,7 +1037,7 @@
     "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
     "environment_lock": {
       "file": "microstructure-sim/requirements.lock.txt",
-      "sha256": "90a9e87e1dac961ca55dbc29bd3ca22fca5b6e4b9a8581dc6b9998f57ccfb88c",
+      "sha256": "3582ba3a36bb21ad902b8887d6d30ca79584d0693471dedebf7f57a1857f3e97",
       "install_command": "python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt && python -m pip install -e microstructure-sim --no-deps --no-build-isolation",
       "runtime_identity": "CPython 3.12",
       "hash_enforced": true,
@@ -937,13 +1045,20 @@
       "line_endings": "lf, pinned by .gitattributes",
       "build_backend_pinned": true,
       "sdist_fallback_possible": false,
-      "verified_before_run": "reproduce refuses to start unless the interpreter and this digest both match",
+      "verified_before_run": "reproduce refuses to start unless confirmatory_status is AUTHORIZED, the interpreter matches the frozen series, this file matches the recorded digest, and every installed distribution matches the pins",
       "wheel_platforms": [
         "manylinux_x86_64",
+        "manylinux_aarch64",
+        "musllinux_x86_64",
+        "musllinux_aarch64",
         "macosx_arm64",
         "macosx_x86_64",
         "win_amd64"
-      ]
+      ],
+      "sdist_hashes_present": false,
+      "runtime_identity_scope": "major.minor is enforced before the run; CI pins an exact patch and the run receipt records the full version. No claim is made that the patch level is enforced outside CI.",
+      "installed_environment_verified_before_run": true,
+      "uncovered_platform_behaviour": "clean failure, no source build"
     },
     "source_sha": "see authority.freeze_identity_rule"
   },

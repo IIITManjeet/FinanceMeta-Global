@@ -5,6 +5,14 @@
 Controls go first and fail closed. If identity, determinism or the sanity case
 does not hold, nothing runs. A broken control kills the causal claim, so
 numbers produced past that point would be worse than no numbers.
+
+There is also `--smoke`, which is the only safe way to exercise the pipeline
+before a run is authorized. It is outcome-blind by construction: it uses
+sentinel seeds that are in no frozen seed set, never calls the decision rule,
+and never writes or prints a verdict. The earlier `--quick` mode did none of
+that. It executed the frozen mechanisms on frozen seeds and printed a verdict,
+which partially unblinded the comparison. It is gone, and the guard in smoke()
+exists so it cannot come back by accident.
 """
 
 from __future__ import annotations
@@ -28,6 +36,10 @@ from .sim import run_once
 
 CONSTANT_SIZE_DISTRIBUTION = {"1": 1.0}
 
+# Deliberately far outside any frozen seed set. A smoke run on these cannot be
+# mistaken for, or turned into, a frozen comparison result.
+SENTINEL_SEEDS = (900_000_001, 900_000_002)
+
 PRIMARY_METRICS = (
     "fill_probability",
     "implementation_shortfall_bps",
@@ -43,7 +55,6 @@ def verify_controls(cfg) -> dict:
     """Run the four controls. Raises AssertionError on the first failure."""
     report: dict[str, object] = {}
 
-    # 1. Analytic sanity case.
     resting = [Resting(1, 2, 1), Resting(2, 10, 2)]
     fifo_alloc = allocate(FIFO, resting, 6)
     prorata_alloc = allocate(PRO_RATA, resting, 6)
@@ -60,7 +71,8 @@ def verify_controls(cfg) -> dict:
     assert allocate(PRO_RATA, uneven, 2) == {3: 2}, "under-allocation pro-rata drift (uneven sizes)"
     report["analytic_sanity_case"] = "PASS"
 
-    # 2. Identity: both arms must consume the same realization.
+    # Identity: both arms must consume the same realization. The generator takes
+    # no mechanism argument, so this is structural; the digests record it.
     identity = {}
     for seed in cfg.seeds[:5]:
         digests = {m: stream_digest(generate_stream(cfg, seed, 2000)) for m in (FIFO, PRO_RATA)}
@@ -69,7 +81,7 @@ def verify_controls(cfg) -> dict:
     report["identity_control"] = "PASS"
     report["identity_digests"] = identity
 
-    # 3. Determinism: replay must be byte-identical.
+    # Determinism: replay must be byte-identical.
     probe = dataclasses.replace(cfg, warm_up_events=500, horizon_events=2000)
     first = run_once(probe, FIFO, seed=cfg.seeds[0], latency_ms=cfg.matched_baseline_ms)
     second = run_once(probe, FIFO, seed=cfg.seeds[0], latency_ms=cfg.matched_baseline_ms)
@@ -79,21 +91,60 @@ def verify_controls(cfg) -> dict:
     report["deterministic_replay"] = "PASS"
     report["replay_sha256"] = hashlib.sha256(a).hexdigest()
 
-    # 4. Zero-latency control is the tracked-agent-0 ms cell of the main grid.
-    #    Background latency has no dynamic effect under non-reactive agents, so
-    #    all-agents-zero and tracked-zero coincide; there is no separate cell.
+    # Zero-latency control is the tracked-agent-0 ms cell of the main grid.
+    # Background latency has no dynamic effect under non-reactive agents, so
+    # all-agents-zero and tracked-zero coincide; there is no separate cell.
     assert 0 in cfg.latency_grid, "zero-latency control missing from the frozen grid"
     report["zero_latency_control"] = "PASS"
     return report
 
 
+def smoke(cfg) -> int:
+    """Outcome-blind pipeline check. Never touches a frozen seed or the decision rule.
+
+    Exercises shape and invariants on sentinel seeds only. It cannot produce the
+    frozen comparison decision: decide() is not called, no run record is written,
+    and no verdict is computed or printed.
+    """
+    frozen = set(cfg.seeds) | set(cfg.confirmation_seeds)
+    for s in SENTINEL_SEEDS:
+        assert s not in frozen, f"sentinel seed {s} collides with a frozen seed set"
+
+    print("Verifying frozen controls ...")
+    controls = verify_controls(cfg)
+    for key in ("analytic_sanity_case", "identity_control", "deterministic_replay", "zero_latency_control"):
+        print(f"  {key}: {controls[key]}")
+
+    tiny = dataclasses.replace(cfg, warm_up_events=200, horizon_events=800)
+    print(f"\nShape and invariant checks on sentinel seeds {SENTINEL_SEEDS} ...")
+    for seed in SENTINEL_SEEDS:
+        digests = {}
+        for mechanism in (FIFO, PRO_RATA):
+            record = run_once(tiny, mechanism, seed, cfg.matched_baseline_ms, cell="sentinel").to_record()
+            for key in PRIMARY_METRICS:
+                assert key in record, f"missing metric field: {key}"
+            assert isinstance(record["implementation_shortfall_bps"], float), "shortfall must be defined"
+            assert 0.0 <= record["fill_probability"] <= 1.0, "fill probability out of range"
+            assert len(record["stream_sha256"]) == 64, "missing stream digest"
+            assert record["cell"] == "sentinel", "sentinel runs must be labelled sentinel"
+            digests[mechanism] = record["stream_sha256"]
+        assert digests[FIFO] == digests[PRO_RATA], f"identity failed on sentinel seed {seed}"
+        print(f"  seed {seed}: fields present, shortfall defined, identity holds")
+
+    print("\nSMOKE PASS - structure only.")
+    print("No frozen seed or cell was executed, the decision rule was not called,")
+    print("and no run record or verdict was produced.")
+    return 0
+
+
 def build_matrix(cfg) -> list[tuple[str, int, int, str, dict | None]]:
     jobs: list[tuple[str, int, int, str, dict | None]] = []
+    seeds = cfg.confirmation_seeds
     for mechanism in (FIFO, PRO_RATA):
         for latency in cfg.latency_grid:
-            for seed in cfg.seeds:
+            for seed in seeds:
                 jobs.append((mechanism, seed, latency, "main", None))
-        for seed in cfg.seeds:
+        for seed in seeds:
             jobs.append(
                 (mechanism, seed, cfg.matched_baseline_ms, "robustness", CONSTANT_SIZE_DISTRIBUTION)
             )
@@ -115,10 +166,13 @@ def environment_lock(cfg, contract_path: Path) -> str:
     except OSError:
         freeze = ""
     contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+    lock_path = Path(__file__).resolve().parents[2] / "requirements.lock.txt"
+    lock_sha = hashlib.sha256(lock_path.read_bytes()).hexdigest() if lock_path.is_file() else ""
     lines = [
         f"source_commit={sha}",
         f"contract_id={cfg.contract_id}",
         f"contract_sha256={contract_sha}",
+        f"requirements_lock_sha256={lock_sha}",
         f"python={platform.python_version()}",
         f"platform={platform.platform()}",
         "",
@@ -132,9 +186,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--contract", type=Path, default=None)
     parser.add_argument("--out", type=Path, default=Path("results"))
     parser.add_argument(
-        "--quick",
+        "--smoke",
         action="store_true",
-        help="reduced-scale verification pass; NOT the frozen comparison",
+        help="outcome-blind pipeline check on sentinel seeds; no frozen cell, no verdict",
     )
     args = parser.parse_args(argv)
 
@@ -145,8 +199,8 @@ def main(argv: list[str] | None = None) -> int:
 
         contract_path = DEFAULT_CONTRACT
 
-    if args.quick:
-        cfg = dataclasses.replace(cfg, warm_up_events=1000, horizon_events=5000, seeds=cfg.seeds[:6])
+    if args.smoke:
+        return smoke(cfg)
 
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -156,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {key}: {controls[key]}")
 
     jobs = build_matrix(cfg)
-    print(f"\nExecuting {len(jobs)} runs ({'QUICK verification scale' if args.quick else 'frozen scale'}) ...")
+    print(f"\nExecuting {len(jobs)} runs at frozen scale on the confirmation seed set ...")
 
     records = []
     started = time.time()
@@ -202,9 +256,6 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\nWrote {len(records)} run records to {runs_path}")
     print(f"Verdict: {decision['verdict']}")
-    if args.quick:
-        print("\nQUICK MODE - reduced scale. This is NOT the frozen comparison and")
-        print("must not be reported as a result.")
     return 0
 
 

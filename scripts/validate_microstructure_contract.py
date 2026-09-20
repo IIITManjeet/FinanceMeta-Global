@@ -14,6 +14,10 @@ PROTOCOL_DOC = ROOT / "evaluation/microstructure-mechanism-2026-09/PROTOCOL.md"
 
 CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2"
 FROZEN_DATE = "2026-09-19"
+EXPECTED_STATUS = "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED"
+EXPECTED_CONFIRMATORY_STATUS = "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW"
+EXPECTED_CONFIRMATION_SEEDS = list(range(100, 130))
+EXPOSED_DEVELOPMENT_SEEDS = [0, 1, 2, 3, 4, 5]
 EXPECTED_REPOSITORY_URL = "https://github.com/build-the-future-11/FinanceMeta-Global"
 
 EXPECTED_MECHANISM_IDS = {"FIFO", "PRO_RATA"}
@@ -81,12 +85,33 @@ PROTOCOL_SAFEGUARDS = (
     "paired by seed",
     "opportunity cost",
     "no dynamic effect",
+    "partially unblinded",
+    "confirmation seed",
 )
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def _validate_exposure(freeze: dict) -> None:
+    """The recorded exposure is retained, not quietly reverted."""
+    exposure = freeze["exposure"]
+    require(exposure["occurred"] is True, "the recorded exposure cannot be erased")
+    require(
+        exposure["scope"]["seeds_exposed"] == EXPOSED_DEVELOPMENT_SEEDS,
+        "exposed seed list drift",
+    )
+    require(exposure["evidence"]["preserved"] is True, "exposure evidence must remain preserved")
+    require(
+        str(exposure["tuning_in_response"]).lower().startswith("none"),
+        "nothing may be tuned in response to the exposed verdict",
+    )
+    require(
+        exposure["must_be_reported_in_findings"] is True,
+        "the exposure must remain reportable in the findings record",
+    )
 
 
 def _validate_amendments(freeze: dict) -> None:
@@ -163,7 +188,11 @@ def _validate_negative_criteria(negative: dict) -> None:
 
 def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(data.get("contract_id") == CONTRACT_ID, "contract ID drift")
-    require(data.get("status") == "FROZEN_PRE_RESULT", "contract must remain frozen pre-result")
+    require(data.get("status") == EXPECTED_STATUS, "exposure status must not be downgraded")
+    require(
+        data.get("confirmatory_status") == EXPECTED_CONFIRMATORY_STATUS,
+        "confirmatory run cannot be marked authorised here",
+    )
     require(data.get("frozen_date") == FROZEN_DATE, "freeze date drift")
 
     authority = data["authority"]
@@ -174,7 +203,11 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require("freeze_identity_rule" in authority, "freeze identity rule missing")
 
     freeze = data["freeze"]
-    require(freeze["results_inspected"] is False, "results cannot be inspected before the main run")
+    require(
+        freeze["results_inspected"] is True,
+        "results_inspected must stay true while the recorded exposure stands",
+    )
+    _validate_exposure(freeze)
     require(freeze["simulator_implemented_at_freeze"] is False, "simulator must not exist at brief freeze")
     require(freeze["parameters_may_change_after_results"] is False, "post-result parameter change cannot be permitted")
     require(
@@ -207,6 +240,17 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(seeds["seeds"] == EXPECTED_SEEDS, "seed policy drift")
     require(seeds["seed_count"] == len(EXPECTED_SEEDS), "seed count inconsistent with seed list")
     require(seeds["failed_seeds_may_be_discarded"] is False, "failed seeds cannot be discarded")
+    require(seeds["confirmation_seeds"] == EXPECTED_CONFIRMATION_SEEDS, "confirmation seed set drift")
+    require(len(seeds["confirmation_seeds"]) == len(EXPECTED_SEEDS), "confirmation seed count must match")
+    require(
+        not (set(seeds["confirmation_seeds"]) & set(seeds["development_seeds"])),
+        "confirmation seeds must stay disjoint from the exposed development seeds",
+    )
+    require(
+        seeds["confirmation_seeds_frozen_before_any_further_outcome_access"] is True,
+        "confirmation seeds must remain pre-registered",
+    )
+    require(seeds["confirmatory_run_uses"] == "confirmation_seeds", "confirmatory run must use the disjoint set")
 
     latency = data["latency"]
     require(latency["tracked_agent_one_way_ms"] == EXPECTED_LATENCY_GRID, "latency sweep drift")
@@ -292,6 +336,13 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     )
     require(len(reporting["required"]) >= 6, "required reporting list truncated")
 
+    lock = data["reproduction"]["environment_lock"]
+    require(isinstance(lock, dict), "environment lock must be frozen, not null")
+    require(lock["hash_enforced"] is True, "environment lock must enforce hashes")
+    require(lock["frozen_before_confirmatory_run"] is True, "lock must predate the confirmatory run")
+    require(len(str(lock["sha256"])) == 64, "environment lock digest missing")
+    require((ROOT / lock["file"]).is_file(), "environment lock file missing")
+
     boundary = str(data["claim_boundary"]).lower()
     require("synthetic simulation only" in boundary, "claim boundary must declare synthetic-only scope")
     for phrase in ("real-market performance", "realized returns", "exchange deployability"):
@@ -309,7 +360,7 @@ def main() -> None:
     args = parser.parse_args()
     data = json.loads(args.contract.read_text(encoding="utf-8"))
     validate(data, args.contract.parent / "PROTOCOL.md")
-    print("PASS: microstructure mechanism contract is frozen, two-mechanism, pre-result and claim-bounded")
+    print("PASS: contract is two-mechanism, exposure-declared, confirmation-seeded and claim-bounded")
 
 
 if __name__ == "__main__":

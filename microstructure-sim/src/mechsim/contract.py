@@ -44,6 +44,7 @@ class Config:
     matched_baseline_ms: int
     # seeds
     seeds: tuple[int, ...]
+    confirmation_seeds: tuple[int, ...]
     bootstrap_seed: int
     bootstrap_resamples: int
     # fees
@@ -92,6 +93,7 @@ def load_config(contract_path: Path | str | None = None) -> Config:
         background_latency_ms=int(latency["background_one_way_ms"]),
         matched_baseline_ms=int(latency["matched_baseline_ms"]),
         seeds=tuple(int(s) for s in seeds["seeds"]),
+        confirmation_seeds=tuple(int(s) for s in seeds["confirmation_seeds"]),
         bootstrap_seed=int(seeds["bootstrap_seed"]),
         bootstrap_resamples=int(decision["bootstrap_resamples"]),
         maker_bps=float(fees["maker_bps"]),

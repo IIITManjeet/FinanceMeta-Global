@@ -1,9 +1,9 @@
 {
   "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2",
   "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v1",
-  "status": "FROZEN_PRE_RESULT",
+  "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
-  "amended_date": "2026-09-19",
+  "amended_date": "2026-09-20",
   "authority": {
     "evidence_gate_issue": "build-the-future-11/FinanceMeta-Global#51",
     "parent_issue": "build-the-future-11/FinanceMeta-Global#47",
@@ -19,7 +19,7 @@
     "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v2 (git rev-parse microstructure-freeze-v2^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name."
   },
   "freeze": {
-    "results_inspected": false,
+    "results_inspected": true,
     "simulator_implemented_at_freeze": false,
     "parameters_may_change_after_results": false,
     "third_mechanism_may_be_added_after_results": false,
@@ -135,8 +135,93 @@
           "note": "No frozen cell has been inspected. Every amendment here was motivated by the pre-result review on PR #57."
         },
         "superseded_commit": "5bb5adab2749e1d3e5f4e29d027333df7f8f43eb"
+      },
+      {
+        "id": "A9",
+        "timestamp_utc": "2026-09-20T12:10:00Z",
+        "section": "/status, /confirmatory_status, /freeze/results_inspected, /freeze/exposure",
+        "old_rule": "status FROZEN_PRE_RESULT with results_inspected false and no outcome in existence.",
+        "new_rule": "status PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED, results_inspected true, with a retained exposure record naming the seeds, run count, scale, artifacts and the printed verdict.",
+        "reason": "The --quick path executed the frozen mechanisms and cells on development seeds 0-5 and printed a verdict to the CI log, so the record could no longer claim no outcome existed. Declared by the reviewer and verified in the run log.",
+        "reviewer_reference": "PR #57 pre-run blocker, accidental outcome exposure",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Frozen-scale outcomes remain uninspected. The recorded exposure is the reduced-scale development exposure described in freeze.exposure."
+        },
+        "superseded_commit": "678cb1a989045b19f845e39ebd87c1b8fa76e4fb"
+      },
+      {
+        "id": "A10",
+        "timestamp_utc": "2026-09-20T12:10:00Z",
+        "section": "/order_flow (verification tooling), reproduce.py",
+        "old_rule": "--quick ran the frozen mechanisms and cells on a subset of frozen seeds, called the decision rule, wrote run records and printed a verdict.",
+        "new_rule": "--quick is removed. --smoke is outcome-blind: sentinel seeds outside every frozen seed set, shape and invariant checks only, decide() never called, no run record written and no verdict computed or printed. A guard asserts sentinel seeds do not collide with any frozen set.",
+        "reason": "A verification path that executes the frozen comparison is not a smoke test. Suppressing only the printed verdict would have concealed the unblinding rather than removed it.",
+        "reviewer_reference": "PR #57 pre-run blocker, required recovery step 3",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Frozen-scale outcomes remain uninspected. The recorded exposure is the reduced-scale development exposure described in freeze.exposure."
+        },
+        "superseded_commit": "678cb1a989045b19f845e39ebd87c1b8fa76e4fb"
+      },
+      {
+        "id": "A11",
+        "timestamp_utc": "2026-09-20T12:10:00Z",
+        "section": "/reproduction/environment_lock",
+        "old_rule": "environment_lock was null; dependencies were declared as ranges and provenance came from a post-install pip freeze in CI.",
+        "new_rule": "An exact hash-enforced lock is frozen before the confirmatory run, with CPython 3.12 as the runtime identity and its sha256 recorded in the contract.",
+        "reason": "A post-install freeze is a receipt, not a lock. The confirmatory run must be pinned before it executes.",
+        "reviewer_reference": "PR #57 pre-run blocker, missing pre-run environment lock",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Frozen-scale outcomes remain uninspected. The recorded exposure is the reduced-scale development exposure described in freeze.exposure."
+        },
+        "superseded_commit": "678cb1a989045b19f845e39ebd87c1b8fa76e4fb"
+      },
+      {
+        "id": "A12",
+        "timestamp_utc": "2026-09-20T12:10:00Z",
+        "section": "/seed_policy",
+        "old_rule": "A single frozen seed set 0-29 served both development and the confirmatory comparison.",
+        "new_rule": "Seeds 0-29 are retained as the development set with 0-5 recorded as exposed. A disjoint confirmation set, seeds 100-129, is frozen here before any further outcome access and is what the confirmatory run uses. Count, run matrix and every other parameter are unchanged.",
+        "reason": "Development seeds 0-5 are no longer blind, so a clean confirmatory claim needs a pre-registered disjoint set. Only the seed identities change; nothing else was touched in response to the exposed verdict.",
+        "reviewer_reference": "PR #57 pre-run blocker, required recovery step 5",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Frozen-scale outcomes remain uninspected. The recorded exposure is the reduced-scale development exposure described in freeze.exposure."
+        },
+        "superseded_commit": "678cb1a989045b19f845e39ebd87c1b8fa76e4fb"
       }
-    ]
+    ],
+    "exposure": {
+      "occurred": true,
+      "declared_by": "reviewer, PR #57 pre-run blocker, 2026-09-20",
+      "what": "The --quick verification path executed the frozen mechanisms and cells on the first six frozen development seeds and printed a scientific verdict to the CI log.",
+      "scope": {
+        "seeds_exposed": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "runs_executed": 108,
+        "scale": "reduced: 1000 warm-up + 5000 events per run, not the frozen 10000 + 100000",
+        "artifacts_written": [
+          "runs.jsonl in the runner temp directory"
+        ],
+        "verdict_printed": true
+      },
+      "evidence": {
+        "workflow_run": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869",
+        "head_commit": "678cb1a989045b19f845e39ebd87c1b8fa76e4fb",
+        "preserved": true,
+        "note": "The run, its log and its artifact are retained. No history has been rewritten."
+      },
+      "tuning_in_response": "none. No mechanism, metric, threshold, label, latency point, seed policy parameter or participant assumption was altered in response to the exposed verdict. The only changes are the ones required by the recovery instruction.",
+      "must_be_reported_in_findings": true
+    }
   },
   "research_question": "Under an identical prespecified synthetic order-flow realization and latency model, how do price-time priority and pro-rata allocation differ in execution quality and queue outcomes for a tracked passive parent order?",
   "hypotheses": {
@@ -294,7 +379,83 @@
     ],
     "seed_count": 30,
     "failed_seeds_may_be_discarded": false,
-    "bootstrap_seed": 424242
+    "bootstrap_seed": 424242,
+    "development_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "development_seeds_exposed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "confirmation_seeds": [
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129
+    ],
+    "confirmation_seed_count": 30,
+    "confirmation_seeds_disjoint_from_development": true,
+    "confirmation_seeds_frozen_before_any_further_outcome_access": true,
+    "confirmatory_run_uses": "confirmation_seeds"
   },
   "initial_book_state": {
     "levels_per_side": 5,
@@ -481,7 +642,14 @@
   },
   "reproduction": {
     "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
-    "environment_lock": null,
+    "environment_lock": {
+      "file": "microstructure-sim/requirements.lock.txt",
+      "sha256": "2fac9e33a5f9cc2b0f8ff5fc6fb45763a3a2376bc51a543be514238c7e148ad5",
+      "install_command": "python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt",
+      "runtime_identity": "CPython 3.12",
+      "hash_enforced": true,
+      "frozen_before_confirmatory_run": true
+    },
     "source_sha": "see authority.freeze_identity_rule"
   },
   "reporting": {
@@ -503,5 +671,6 @@
       "cross-reference to unrelated prior auction or mechanism-design work by the builder"
     ]
   },
-  "claim_boundary": "Synthetic simulation only. Conclusions are valid solely for the two frozen mechanisms under this frozen order-flow process, participant assumptions, latency model and fee schedule. This is not evidence of real-market performance, realized returns, predictive alpha, profitability, market-quality superiority, or exchange deployability."
+  "claim_boundary": "Synthetic simulation only. Conclusions are valid solely for the two frozen mechanisms under this frozen order-flow process, participant assumptions, latency model and fee schedule. This is not evidence of real-market performance, realized returns, predictive alpha, profitability, market-quality superiority, or exchange deployability.",
+  "confirmatory_status": "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW"
 }

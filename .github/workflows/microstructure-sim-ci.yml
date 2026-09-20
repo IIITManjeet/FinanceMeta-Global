@@ -47,12 +47,12 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: microstructure-sim/pyproject.toml
+          cache-dependency-path: microstructure-sim/requirements.lock.txt
 
-      - name: Install package
+      - name: Install from the hash-enforced lock
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e 'microstructure-sim[dev]'
+          python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt
+          python -m pip install -e microstructure-sim --no-deps
           python -m pip check
 
       - name: Byte-compile
@@ -64,12 +64,11 @@ jobs:
       - name: Verify frozen controls
         run: python -m mechsim.cli verify
 
-      - name: Reduced-scale pipeline verification
+      - name: Outcome-blind pipeline smoke
         shell: bash
         run: |
           set -euo pipefail
-          python -m mechsim.reproduce --quick --out "${RUNNER_TEMP}/mechsim-quick"
-          echo "quick-mode output is verification only and is not retained as a result"
+          python -m mechsim.reproduce --smoke
 
       - name: Record environment and digests
         shell: bash
@@ -84,6 +83,7 @@ jobs:
           python -m pip freeze --all >> microstructure-sim-environment.txt
           sha256sum \
             microstructure-sim/pyproject.toml \
+            microstructure-sim/requirements.lock.txt \
             microstructure-sim/src/mechsim/mechanisms.py \
             microstructure-sim/src/mechsim/flow.py \
             microstructure-sim/src/mechsim/book.py \

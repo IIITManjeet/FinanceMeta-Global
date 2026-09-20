@@ -1,6 +1,6 @@
 # Market microstructure sprint: frozen protocol (one page)
 
-**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2` (supersedes v1) · **Status** `FROZEN_PRE_RESULT` · **Frozen** 2026-09-19, amended 2026-09-19
+**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2` (supersedes v1) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
 **Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v2`
 Machine-readable detail and the append-only amendment log: `experiment_contract.json`
 
@@ -22,7 +22,12 @@ Background: non-adaptive zero-intelligence agents, no strategic response to mech
 Constant per-agent one-way, no jitter. Tracked agent swept over **{0, 1, 2, 5, 10, 25, 50, 100} ms**; background 5 ms; matched baseline **5 ms**, meaning the tracked agent holds neither advantage nor disadvantage. Background latency has **no dynamic effect** under non-reactive agents: a uniform shift of the background stream is invisible to every outcome.
 
 ## Seeds
-Seeds 0-29 (30). Failed seeds may **not** be discarded. Bootstrap seed 424242.
+**Development set:** seeds 0-29. Seeds 0-5 are **partially unblinded** and are recorded as exposed (see below).
+**Confirmation seed set:** seeds 100-129 (30), disjoint from the development set, pre-registered before any further outcome access. The confirmatory run uses this confirmation seed set.
+Failed seeds may **not** be discarded from either set. Bootstrap seed 424242. Run matrix, mechanisms, metrics, thresholds, labels, latency points and assumptions are all unchanged.
+
+## Recorded exposure
+The former `--quick` verification path executed the frozen mechanisms and cells on development seeds 0-5, 108 runs at reduced scale (1,000 + 5,000 events), and printed a verdict to the CI log. That is a partial unblinding of the frozen comparison family, not a structural smoke test. The run, log and artifact are preserved and no history has been rewritten. Nothing was tuned in response. `--quick` is removed; `--smoke` replaces it and is outcome-blind by construction: sentinel seeds outside every frozen set, shape and invariant checks only, the decision rule never called, no run record and no verdict produced. The exposure is reported in the findings record.
 
 ## Metrics (all five primary, reported every run)
 fill probability · implementation shortfall (bps) · spread at execution · queue position **and** wait time · price impact.
@@ -62,6 +67,10 @@ Zero-intelligence agents do not inflate order size, so the simulator **cannot** 
 Synthetic simulation only. Conclusions hold solely for these two mechanisms under this frozen flow, participant set, latency model and fee schedule. This is **not** evidence of real-market alpha, live execution performance, realized returns, universal market-quality superiority, investor benefit, or exchange deployability. No claim is made that either mechanism is a superior market design, and no prior auction or mechanism-design work by the builder is referenced or relied upon.
 
 ## Reproduce
+Environment is pinned by an exact hash-enforced lock frozen before the confirmatory run, on CPython 3.12:
 ```
+python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt
+python -m pip install -e microstructure-sim --no-deps
 python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json
 ```
+Outcome-blind pipeline check, safe before authorisation: `python -m mechsim.reproduce --smoke`

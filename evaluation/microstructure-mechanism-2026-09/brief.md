@@ -12,7 +12,9 @@
 - Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v2` (supersedes v1; amendments A1-A8 logged in `experiment_contract.json`)
 - Freeze identity: PR #57 head + tag `microstructure-freeze-v2` + CI artifact `microstructure-mechanism-contract-<sha>`
   (rule in `experiment_contract.json` `authority.freeze_identity_rule`; the SHA is not embedded because this file is part of the commit it would name)
-- Freeze timestamp UTC: 2026-09-19
+- Freeze timestamp UTC: 2026-09-19, amended 2026-09-20
+- Status: `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised pending independent pre-run review
+- Development seeds 0-29 with 0-5 exposed; confirmation seed set 100-129 pre-registered and disjoint
 
 ## 1. User + problem
 

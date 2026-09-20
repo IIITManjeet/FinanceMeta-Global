@@ -44,8 +44,63 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
     def test_status_cannot_leave_frozen_pre_result(self) -> None:
         self._reject(lambda d: d.__setitem__("status", "EXECUTED"))
 
-    def test_results_cannot_be_marked_inspected_before_the_run(self) -> None:
-        self._reject(lambda d: d["freeze"].__setitem__("results_inspected", True))
+    def test_recorded_exposure_cannot_be_walked_back(self) -> None:
+        """results_inspected must stay true while the exposure record stands."""
+        self._reject(lambda d: d["freeze"].__setitem__("results_inspected", False))
+
+    def test_exposure_record_cannot_be_erased(self) -> None:
+        self._reject(lambda d: d["freeze"]["exposure"].__setitem__("occurred", False))
+
+    def test_exposed_seed_list_cannot_drift(self) -> None:
+        self._reject(lambda d: d["freeze"]["exposure"]["scope"].__setitem__("seeds_exposed", [0]))
+
+    def test_exposure_evidence_must_stay_preserved(self) -> None:
+        self._reject(lambda d: d["freeze"]["exposure"]["evidence"].__setitem__("preserved", False))
+
+    def test_nothing_may_be_tuned_in_response_to_the_exposed_verdict(self) -> None:
+        self._reject(
+            lambda d: d["freeze"]["exposure"].__setitem__(
+                "tuning_in_response", "latency grid narrowed after seeing UNSTABLE"
+            )
+        )
+
+    def test_exposure_must_remain_reportable_in_findings(self) -> None:
+        self._reject(lambda d: d["freeze"]["exposure"].__setitem__("must_be_reported_in_findings", False))
+
+    def test_exposure_status_cannot_be_downgraded(self) -> None:
+        self._reject(lambda d: d.__setitem__("status", "FROZEN_PRE_RESULT"))
+
+    def test_confirmatory_run_cannot_self_authorise(self) -> None:
+        self._reject(lambda d: d.__setitem__("confirmatory_status", "AUTHORIZED"))
+
+    def test_confirmation_seed_set_cannot_drift(self) -> None:
+        self._reject(lambda d: d["seed_policy"].__setitem__("confirmation_seeds", list(range(100, 120))))
+
+    def test_confirmation_seeds_cannot_overlap_the_exposed_set(self) -> None:
+        self._reject(lambda d: d["seed_policy"].__setitem__("confirmation_seeds", list(range(30))))
+
+    def test_confirmation_seeds_must_stay_pre_registered(self) -> None:
+        self._reject(
+            lambda d: d["seed_policy"].__setitem__(
+                "confirmation_seeds_frozen_before_any_further_outcome_access", False
+            )
+        )
+
+    def test_confirmatory_run_must_use_the_disjoint_set(self) -> None:
+        self._reject(lambda d: d["seed_policy"].__setitem__("confirmatory_run_uses", "development_seeds"))
+
+    def test_environment_lock_cannot_be_null(self) -> None:
+        self._reject(lambda d: d["reproduction"].__setitem__("environment_lock", None))
+
+    def test_environment_lock_must_enforce_hashes(self) -> None:
+        self._reject(lambda d: d["reproduction"]["environment_lock"].__setitem__("hash_enforced", False))
+
+    def test_environment_lock_must_predate_the_confirmatory_run(self) -> None:
+        self._reject(
+            lambda d: d["reproduction"]["environment_lock"].__setitem__(
+                "frozen_before_confirmatory_run", False
+            )
+        )
 
     def test_simulator_cannot_predate_the_brief_freeze(self) -> None:
         self._reject(lambda d: d["freeze"].__setitem__("simulator_implemented_at_freeze", True))

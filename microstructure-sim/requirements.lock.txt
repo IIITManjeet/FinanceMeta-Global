@@ -1,0 +1,33 @@
+# Exact runtime and dependency lock for the confirmatory run.
+# Frozen before any outcome-producing execution, per the pre-run blocker on PR #57.
+#
+# Runtime identity: CPython 3.12 (CI pins 3.12 via actions/setup-python;
+# local verification used 3.12.4 on win_amd64, CI uses ubuntu-24.04 x86_64).
+#
+# Install with hash enforcement:
+#   python -m pip install --require-hashes -r microstructure-sim/requirements.lock.txt
+#
+# numpy is the only runtime dependency of the comparison itself; the remainder
+# pin the test path so the recorded evidence is reproducible end to end.
+
+numpy==2.0.1 \
+    --hash=sha256:485b87235796410c3519a699cfe1faab097e509e90ebb05dcd098db2ae87e7b3 \
+    --hash=sha256:6790654cb13eab303d8402354fabd47472b24635700f631f041bd0b65e37298a \
+    --hash=sha256:bb2124fdc6e62baae159ebcfa368708867eb56806804d005860b6007388df171
+pytest==8.4.2 \
+    --hash=sha256:86c0d0b93306b961d58d62a4db4879f27fe25513d4b969df351abdddb3c30e01 \
+    --hash=sha256:872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79
+iniconfig==2.3.0 \
+    --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
+    --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
+packaging==24.1 \
+    --hash=sha256:026ed72c8ed3fcce5bf8950572258698927fd1dbda10a5e981cdf0ac37f4f002 \
+    --hash=sha256:5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124
+pluggy==1.6.0 \
+    --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
+    --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
+colorama==0.4.6 \
+    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44
+pygments==2.18.0 \
+    --hash=sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199 \
+    --hash=sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a

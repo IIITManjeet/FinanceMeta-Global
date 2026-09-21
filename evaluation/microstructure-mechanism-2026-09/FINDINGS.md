@@ -5,7 +5,7 @@ cell has been inspected, so there is no result in this document yet. It exists
 now because the contract obliges the exposure below to be reported here, and
 that obligation should not point at a file that does not exist.
 
-Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6` (amendments A1-A30, defects D1-D14) · gate issue #51 · PR #57
+Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7` (amendments A1-A34, defects D1-D18) · gate issue #51 · PR #57
 
 ## Primary result
 
@@ -52,9 +52,10 @@ confirmatory run uses.
 
 ## Implementation defects corrected before any run
 
-Found by adversarial self-audit, not by the reviewer. Recorded because five of
-them (D1, D2, D5, D11 and D12) would have invalidated the comparison had it been
-run.
+Recorded because seven of them (D1, D2, D5, D11, D12, D15 and D16) would have
+invalidated the comparison had it been run. D1 to D14 were found by adversarial
+self-audit; D15 to D18 were found by the reviewer in the pre-run technical
+review of v6.
 
 - **D1 — pro-rata tie-break decided by floating-point noise.** Exactly equal
   largest-remainder fractions were ordered by float error rather than
@@ -148,6 +149,30 @@ Found in a third adversarial audit, after the second round was fixed:
   requirement to authorise execution only after independent review had nothing
   behind it. The confirmatory path now refuses to start unless the contract
   records an AUTHORIZED status, before any output directory is created.
+
+Found by the reviewer in the pre-run technical review of v6:
+
+- **D15 — the single-run CLI could self-authorise a frozen outcome.** Its
+  override passed straight through to the runtime guard without consulting any
+  authorisation state, so a confirmation seed could produce an outcome, and be
+  inspected individually, before the full comparison was authorised. This was
+  introduced by the fix for D14: before that the flag was dead code and failed
+  closed, and forwarding it turned a harmless no-op into a real bypass of the
+  gate this recovery exists to establish. The override is removed; frozen
+  outcomes are reachable only through the authorised confirmatory run.
+- **D16 — there was no clean authorisation transition bound to the reviewed
+  source.** The validator pinned the status to NOT_AUTHORIZED while the run
+  required AUTHORIZED, so authorising meant editing both the contract and the
+  validator, advancing the source past the head that had been reviewed.
+  Authorisation now lives in a separate receipt naming the reviewed SHA, which
+  is the only input permitted to change after review; the contract stays
+  byte-identical between review and execution.
+- **D17 — the authorisation predicate was a string prefix test** that would have
+  accepted `AUTHORIZED_REVOKED`. It is now an exact boolean plus a matching
+  contract id and a full reviewed SHA.
+- **D18 — the UNSTABLE significance level was a literal in code** rather than a
+  field in the contract. It is now an explicit numeric field, pinned and loaded
+  with no default.
 
 ## Limitations declared before the run
 

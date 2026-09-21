@@ -1,6 +1,6 @@
 # mechsim: mechanism allocation under frozen order flow
 
-**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v6, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
+**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v7, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
 
 A deterministic discrete-event limit-order-book simulator built for one bounded
 question: under an identical synthetic order-flow realization and latency model,

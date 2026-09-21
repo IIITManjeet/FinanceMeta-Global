@@ -1,9 +1,9 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6",
-  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v5",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6",
   "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
-  "amended_date": "2026-09-20",
+  "amended_date": "2026-09-21",
   "authority": {
     "evidence_gate_issue": "build-the-future-11/FinanceMeta-Global#51",
     "parent_issue": "build-the-future-11/FinanceMeta-Global#47",
@@ -11,16 +11,17 @@
     "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
     "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
     "pull_request": "build-the-future-11/FinanceMeta-Global#57",
-    "freeze_tag": "microstructure-freeze-v6",
+    "freeze_tag": "microstructure-freeze-v7",
     "superseded_tags": [
       "microstructure-freeze-v1",
       "microstructure-freeze-v2",
       "microstructure-freeze-v3",
       "microstructure-freeze-v4",
-      "microstructure-freeze-v5"
+      "microstructure-freeze-v5",
+      "microstructure-freeze-v6"
     ],
     "freeze_commit_sha": null,
-    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v6 (git rev-parse microstructure-freeze-v6^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. The SHA is not embedded because this file is part of the commit it would name. Tags v1 to v5 identify superseded documents."
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v7 (git rev-parse microstructure-freeze-v7^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. Authorisation does not move this head: it is granted by a receipt naming the reviewed SHA, so the reviewed source and the executed source are the same bytes. Tags v1 to v6 identify superseded documents."
   },
   "freeze": {
     "results_inspected": true,
@@ -447,6 +448,62 @@
           "note": "No frozen cell has been inspected. Diagnostics run on sentinel seeds only; run_once refuses frozen seeds."
         },
         "superseded_commit": "6695c56"
+      },
+      {
+        "id": "A31",
+        "section": "/authorization",
+        "old_rule": "Authorisation was a status string inside this contract, so granting it required editing the frozen document and the validator that pins it.",
+        "new_rule": "Authorisation is granted by an external receipt naming the reviewed SHA, and is the only input permitted to change after review. confirmatory_status stays frozen at NOT_AUTHORIZED permanently.",
+        "reason": "As written, the final pre-run reviewed head and the executable authorised head could not be the same immutable source. The receipt keeps the reviewed contract byte-identical to the executed one.",
+        "timestamp_utc": "2026-09-21T18:15:45Z",
+        "reviewer_reference": "PR #57 pre-run technical review of v6, items P0-1, P0-2, P1-1, P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "0dbc79d"
+      },
+      {
+        "id": "A32",
+        "section": "mechsim/cli.py",
+        "old_rule": "The single-run CLI carried an override that passed allow_frozen_seed through to run_once.",
+        "new_rule": "Single-run diagnostics accept non-frozen seeds only, with no override. Frozen outcomes are reachable only through the authorised confirmatory run.",
+        "reason": "The override let a confirmation outcome be produced, and a confirmation seed inspected individually, before authorisation. It bypassed the gate the recovery exists to establish.",
+        "timestamp_utc": "2026-09-21T18:15:45Z",
+        "reviewer_reference": "PR #57 pre-run technical review of v6, items P0-1, P0-2, P1-1, P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "0dbc79d"
+      },
+      {
+        "id": "A33",
+        "section": "/authorization/predicate",
+        "old_rule": "Authorisation was accepted on any status beginning with AUTHORIZED.",
+        "new_rule": "The predicate is an exact boolean true on the receipt, together with a matching contract id and a full 40-character reviewed SHA.",
+        "reason": "A prefix test would have accepted AUTHORIZED_REVOKED.",
+        "timestamp_utc": "2026-09-21T18:15:45Z",
+        "reviewer_reference": "PR #57 pre-run technical review of v6, items P0-1, P0-2, P1-1, P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "0dbc79d"
+      },
+      {
+        "id": "A34",
+        "section": "/negative_result_criteria/UNSTABLE/alpha",
+        "old_rule": "The UNSTABLE significance level existed only in prose; the code carried a literal default.",
+        "new_rule": "An explicit numeric alpha of 0.05 is frozen in the contract, pinned by the validator and loaded with no default.",
+        "reason": "A frozen statistical parameter living in source rather than the contract violates the stated boundary, even when the two agree today.",
+        "timestamp_utc": "2026-09-21T18:15:45Z",
+        "reviewer_reference": "PR #57 pre-run technical review of v6, items P0-1, P0-2, P1-1, P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "0dbc79d"
       }
     ],
     "exposure": {
@@ -655,6 +712,39 @@
         "defect": "The CLI authorisation flag --i-am-authorised-to-run-a-frozen-seed cleared the CLI gate but was never forwarded to run_once, whose own guard then refused, so the documented single-run authorisation path could never succeed.",
         "fix": "The flag is forwarded. A test parses cli.main and fails if the call stops forwarding it.",
         "verified": "Test asserts the keyword is present on the run_once call in cli.main."
+      },
+      {
+        "id": "D15",
+        "found_by": "reviewer, pre-run technical review of v6",
+        "severity": "invalidating",
+        "defect": "The single-run CLI could self-authorise a frozen outcome. mechsim run --seed <frozen> --i-am-authorised-to-run-a-frozen-seed passed allow_frozen_seed=True straight to run_once without consulting any authorisation state, so a development or confirmation seed could produce an outcome before the contract was authorised, and a confirmation seed could be inspected individually ahead of the full comparison.",
+        "introduced_by": "the fix for D14. Before it the flag was dead code and failed closed; forwarding it turned a harmless no-op into a real bypass of the gate the recovery exists to establish.",
+        "fix": "The override is removed entirely. Single-run diagnostics accept non-frozen seeds only, with no escape hatch. Frozen outcomes are reachable solely through mechsim.reproduce behind the authorisation gate.",
+        "verified": "The CLI refuses both a development and a confirmation seed; a test asserts the flag cannot return and that cli.main never passes allow_frozen_seed."
+      },
+      {
+        "id": "D16",
+        "found_by": "reviewer, pre-run technical review of v6",
+        "severity": "invalidating",
+        "defect": "There was no clean authorisation transition bound to the reviewed source. The validator pinned confirmatory_status to NOT_AUTHORIZED while the run required a status beginning with AUTHORIZED, so authorising a run meant editing the contract and the validation code, advancing the source past the reviewed head. The final pre-run reviewed head and the executable authorised head could not be the same immutable source.",
+        "fix": "Authorisation moved out of the contract into a separate receipt, evaluation/microstructure-mechanism-2026-09/authorization.json, which is the only input permitted to change after review. It names the reviewed SHA, which must be the executing revision or an ancestor of it. confirmatory_status stays frozen at NOT_AUTHORIZED permanently, so the reviewed contract and the executed contract are byte-identical and the validator never has to change to permit a run. The run records the receipt digest, the reviewed SHA, the head SHA, the reviewer and the grant time.",
+        "verified": "Absent receipt refuses and creates no output; a receipt naming an unrelated SHA refuses; the contract and validator are unchanged by the act of authorising."
+      },
+      {
+        "id": "D17",
+        "found_by": "reviewer, pre-run technical review of v6",
+        "severity": "major",
+        "defect": "The authorisation predicate was a string prefix test, status.startswith(AUTHORIZED), which would have accepted AUTHORIZED_REVOKED or AUTHORIZED_DO_NOT_RUN.",
+        "fix": "The predicate is an exact boolean: the receipt must carry approved set to true, and the receipt must name this contract id. A string, an integer or a near-miss label is refused.",
+        "verified": "Near-miss receipts tested and refused: AUTHORIZED, AUTHORIZED_REVOKED, the string true, the integer 1, and null."
+      },
+      {
+        "id": "D18",
+        "found_by": "reviewer, pre-run technical review of v6",
+        "severity": "minor",
+        "defect": "The UNSTABLE significance level was a literal 0.05 in load_config rather than a field in the contract, violating the stated boundary that the contract is the only source for frozen parameters. The prose also said 0.05, so the statistic was unaffected, but nothing bound them together.",
+        "fix": "negative_result_criteria.UNSTABLE.alpha is an explicit numeric field, pinned by the validator, loaded into Config with no default, and covered by a drift test.",
+        "verified": "Config reports 0.05 loaded from the contract; a drift test rejects a changed alpha."
       }
     ]
   },
@@ -1059,7 +1149,9 @@
       "rule": "Evaluated only when NULL does not hold. Let n_plus and n_minus be the counts of strictly positive and strictly negative per-seed differences at the matched baseline, excluding exact zeros. UNSTABLE holds when the exact two-sided binomial sign test of n_plus against n_minus gives p greater than 0.05.",
       "implied_for_30_nonzero_pairs": "minority sign count at least 10",
       "single_opposite_seed_triggers": false,
-      "conditional_on_non_null": true
+      "conditional_on_non_null": true,
+      "alpha": 0.05,
+      "alpha_note": "Two-sided exact binomial sign test significance level. Loaded from here; no default exists in code."
     },
     "LATENCY_DRIVEN": {
       "rule": "Evaluated only when NULL does not hold. Let D5 be the point estimate at the matched baseline and D0 the paired point estimate at the zero-latency control. Holds when the paired BCa 95 percent interval at 0 ms contains zero AND the absolute value of D0 is at most 0.5 times the absolute value of D5.",
@@ -1129,5 +1221,28 @@
     ]
   },
   "claim_boundary": "Synthetic simulation only. Conclusions are valid solely for the two frozen mechanisms under this frozen order-flow process, participant assumptions, latency model and fee schedule. This is not evidence of real-market performance, realized returns, predictive alpha, profitability, market-quality superiority, or exchange deployability.",
-  "confirmatory_status": "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW"
+  "confirmatory_status": "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW",
+  "authorization": {
+    "mechanism": "external receipt",
+    "receipt_file": "evaluation/microstructure-mechanism-2026-09/authorization.json",
+    "receipt_absent_means": "not authorised",
+    "predicate": "receipt.approved is exactly boolean true; no string prefix is accepted",
+    "receipt_must_name": [
+      "approved",
+      "contract_id",
+      "reviewed_sha",
+      "reviewer",
+      "timestamp_utc"
+    ],
+    "reviewed_sha_rule": "full 40-character SHA, and must be this revision or an ancestor of it",
+    "receipt_is_the_only_post_review_mutable_input": true,
+    "contract_confirmatory_status_is_frozen": "confirmatory_status stays NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW permanently. Authorisation is granted by the receipt, so the reviewed contract and the executed contract are the same bytes and the validator never has to change to permit a run.",
+    "run_records": [
+      "receipt_sha256",
+      "reviewed_sha",
+      "head_sha",
+      "reviewer",
+      "granted_utc"
+    ]
+  }
 }

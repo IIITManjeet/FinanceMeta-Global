@@ -101,5 +101,5 @@ def load_config(contract_path: Path | str | None = None) -> Config:
         maker_bps=float(fees["maker_bps"]),
         taker_bps=float(fees["taker_bps"]),
         attenuation_ratio_max=float(negative["LATENCY_DRIVEN"]["attenuation_ratio_max"]),
-        unstable_sign_test_alpha=0.05,
+        unstable_sign_test_alpha=float(negative["UNSTABLE"]["alpha"]),
     )

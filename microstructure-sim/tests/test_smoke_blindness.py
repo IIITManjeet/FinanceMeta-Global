@@ -196,10 +196,10 @@ def test_robustness_latency_comes_from_the_contract(cfg) -> None:
     assert latencies == {cfg.robustness_latency_ms}
 
 
-def test_confirmatory_run_refuses_without_authorisation(cfg, tmp_path) -> None:
-    """Nothing used to read confirmatory_status, so the gate was a convention."""
+def test_confirmatory_run_refuses_without_an_authorisation_receipt(cfg, tmp_path) -> None:
+    """Authorisation lives in a receipt, so granting it never edits the contract."""
     from mechsim.reproduce import main as reproduce_main
-    with pytest.raises(SystemExit, match="confirmatory_status"):
+    with pytest.raises(SystemExit, match="no authorisation receipt"):
         reproduce_main(["--out", str(tmp_path / "results")])
     assert not (tmp_path / "results").exists(), "no output may be created before authorisation"
 
@@ -216,15 +216,40 @@ def test_runtime_gate_rejects_a_drifted_environment(cfg, monkeypatch) -> None:
         R._require_locked_runtime(cfg, Path(DEFAULT_CONTRACT))
 
 
-def test_cli_authorisation_flag_reaches_run_once() -> None:
-    """The flag used to clear only the CLI gate, so the documented path always failed."""
+def test_cli_cannot_unlock_a_frozen_seed(cfg) -> None:
+    """The CLI had an override that let a frozen outcome be produced before
+    authorisation, and a confirmation seed inspected individually. It is gone:
+    frozen outcomes are reachable only through the authorised confirmatory run."""
     import mechsim.cli as cli
+
     src = inspect.getsource(cli.main)
+    assert "i_am_authorised_to_run_a_frozen_seed" not in src, "the CLI override must not come back"
     tree = ast.parse(textwrap.dedent(src))
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "run_once":
-            assert any(k.arg == "allow_frozen_seed" for k in node.keywords), (
-                "cli run must forward its authorisation flag to run_once"
+            assert not any(k.arg == "allow_frozen_seed" for k in node.keywords), (
+                "cli run must never pass allow_frozen_seed"
             )
-            return
-    raise AssertionError("no run_once call found in cli.main")
+
+    for seed in (cfg.seeds[0], cfg.confirmation_seeds[0]):
+        with pytest.raises(SystemExit, match="refusing to run frozen seed"):
+            cli.main(["run", "--mechanism", "FIFO", "--seed", str(seed)])
+
+
+def test_authorisation_predicate_rejects_near_miss_receipts(cfg, tmp_path, monkeypatch) -> None:
+    """A prefix test would have accepted AUTHORIZED_REVOKED; the predicate is an exact bool."""
+    import json
+    import mechsim.reproduce as R
+    from mechsim.contract import DEFAULT_CONTRACT
+
+    contract = json.loads(Path(DEFAULT_CONTRACT).read_text(encoding="utf-8"))
+    staged = tmp_path / "experiment_contract.json"
+    staged.write_text(json.dumps(contract), encoding="utf-8")
+    receipt = tmp_path / "authorization.json"
+
+    base = {"contract_id": contract["contract_id"], "reviewed_sha": "0" * 40,
+            "reviewer": "x", "timestamp_utc": "t"}
+    for approved in ("AUTHORIZED", "AUTHORIZED_REVOKED", "true", 1, None):
+        receipt.write_text(json.dumps({**base, "approved": approved}), encoding="utf-8")
+        with pytest.raises(SystemExit, match="does not approve"):
+            R._require_authorisation(staged)

@@ -22,11 +22,6 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--mechanism", choices=MECHANISMS, default=FIFO)
     p_run.add_argument("--seed", type=int, required=True)
     p_run.add_argument("--latency-ms", type=int, default=5)
-    p_run.add_argument(
-        "--i-am-authorised-to-run-a-frozen-seed",
-        action="store_true",
-        help="required to execute a development or confirmation seed",
-    )
 
     p_verify = sub.add_parser("verify", help="run the four frozen controls only")
     p_verify.add_argument("--contract", type=Path, default=None)
@@ -45,17 +40,19 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0
 
+    # Single-run diagnostics accept non-frozen seeds only, with no override.
+    # A flag that unlocked a frozen seed here would let a confirmation outcome be
+    # produced, and a confirmation seed inspected individually, before the
+    # authorised full comparison. Frozen outcomes are reachable only through
+    # mechsim.reproduce, behind the authorisation gate.
     frozen = set(cfg.seeds) | set(cfg.confirmation_seeds)
-    if args.seed in frozen and not args.i_am_authorised_to_run_a_frozen_seed:
+    if args.seed in frozen:
         raise SystemExit(
-            f"refusing to run frozen seed {args.seed}: this would produce an outcome on a "
-            "development or confirmation seed. Use a sentinel seed, or pass "
-            "--i-am-authorised-to-run-a-frozen-seed if a run has been authorised."
+            f"refusing to run frozen seed {args.seed}: development and confirmation seeds are "
+            "executable only by the authorised confirmatory run (mechsim.reproduce). "
+            "Use a sentinel seed for a single-run diagnostic."
         )
-    result = run_once(
-        cfg, args.mechanism, args.seed, args.latency_ms,
-        allow_frozen_seed=args.i_am_authorised_to_run_a_frozen_seed,
-    )
+    result = run_once(cfg, args.mechanism, args.seed, args.latency_ms)
     print(json.dumps(result.to_record(), indent=2, sort_keys=True))
     return 0
 

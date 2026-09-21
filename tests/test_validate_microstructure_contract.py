@@ -39,7 +39,7 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
         validator.validate(self.data, PROTOCOL)
 
     def test_contract_id_cannot_drift(self) -> None:
-        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7"))
+        self._reject(lambda d: d.__setitem__("contract_id", "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v8"))
 
     def test_status_cannot_leave_frozen_pre_result(self) -> None:
         self._reject(lambda d: d.__setitem__("status", "EXECUTED"))
@@ -153,7 +153,7 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
         self._reject(lambda d: d["freeze"]["amendments"][0].__setitem__("superseded_commit", "yesterday"))
 
     def test_freeze_tag_must_be_the_current_version(self) -> None:
-        self._reject(lambda d: d["authority"].__setitem__("freeze_tag", "microstructure-freeze-v5"))
+        self._reject(lambda d: d["authority"].__setitem__("freeze_tag", "microstructure-freeze-v6"))
 
     def test_superseded_tag_cannot_be_dropped(self) -> None:
         self._reject(lambda d: d["authority"].__setitem__("superseded_tags", []))
@@ -414,6 +414,35 @@ class MicrostructureMechanismContractTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 validator.validate(copy.deepcopy(self.data), stub)
 
+
+
+    def test_authorization_block_cannot_be_removed(self) -> None:
+        self._reject(lambda d: d.pop("authorization"))
+
+    def test_receipt_cannot_stop_being_the_only_mutable_input(self) -> None:
+        self._reject(
+            lambda d: d["authorization"].__setitem__(
+                "receipt_is_the_only_post_review_mutable_input", False
+            )
+        )
+
+    def test_authorisation_predicate_cannot_become_a_prefix_test(self) -> None:
+        """A prefix test would accept AUTHORIZED_REVOKED."""
+        self._reject(
+            lambda d: d["authorization"].__setitem__(
+                "predicate", "any status beginning with AUTHORIZED"
+            )
+        )
+
+    def test_receipt_must_keep_naming_the_reviewed_sha(self) -> None:
+        self._reject(
+            lambda d: d["authorization"].__setitem__(
+                "receipt_must_name", ["approved", "contract_id"]
+            )
+        )
+
+    def test_unstable_alpha_cannot_drift(self) -> None:
+        self._reject(lambda d: d["negative_result_criteria"]["UNSTABLE"].__setitem__("alpha", 0.2))
 
 if __name__ == "__main__":
     unittest.main()

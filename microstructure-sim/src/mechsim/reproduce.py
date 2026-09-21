@@ -149,23 +149,67 @@ def smoke(cfg) -> int:
     return 0
 
 
-def _require_authorisation(contract_path: Path) -> None:
-    """Refuse the confirmatory run until the contract records an authorisation.
+def _git(*args: str) -> str:
+    try:
+        return subprocess.run(["git", *args], capture_output=True, text=True, check=False).stdout.strip()
+    except OSError:
+        return ""
 
-    Nothing used to read this field. The contract could say NOT_AUTHORIZED while
-    the confirmatory command ran to completion, which made the requirement to
-    authorise execution only after independent review a convention with nothing
-    behind it.
+
+def _require_authorisation(contract_path: Path) -> dict:
+    """Refuse the confirmatory run until an authorisation receipt names this source.
+
+    The receipt is a separate file, not a contract field, and it is the only
+    input that may change after the pre-run review. That keeps the reviewed
+    contract byte-identical to the executed one: authorising a run cannot
+    require editing the frozen document or the validator that pins it.
+
+    The predicate is an exact boolean, not a string prefix. A prefix test would
+    accept AUTHORIZED_REVOKED or AUTHORIZED_DO_NOT_RUN.
     """
     data = json.loads(contract_path.read_text(encoding="utf-8"))
-    status = data.get("confirmatory_status", "")
-    if not status.startswith("AUTHORIZED"):
+    rule = data["authorization"]
+    receipt_path = contract_path.parent / Path(rule["receipt_file"]).name
+
+    if not receipt_path.is_file():
         raise SystemExit(
-            f"refusing to run: confirmatory_status is {status!r}. "
-            "The 540-cell comparison runs only once the contract records an "
-            "AUTHORIZED status, set after independent pre-run review. "
-            "Use --smoke for an outcome-blind pipeline check."
+            f"refusing to run: no authorisation receipt at {receipt_path}. "
+            "The confirmatory comparison runs only after independent pre-run review has produced "
+            "a receipt naming the reviewed source. Use --smoke for an outcome-blind check."
         )
+
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    if receipt.get("approved") is not True:
+        raise SystemExit(
+            f"refusing to run: authorisation receipt does not approve this run "
+            f"(approved={receipt.get('approved')!r})."
+        )
+    if receipt.get("contract_id") != data["contract_id"]:
+        raise SystemExit(
+            f"refusing to run: receipt authorises {receipt.get('contract_id')!r}, "
+            f"this contract is {data['contract_id']!r}."
+        )
+
+    reviewed = str(receipt.get("reviewed_sha", ""))
+    if not re.fullmatch(r"[0-9a-f]{40}", reviewed):
+        raise SystemExit("refusing to run: receipt must name the reviewed source as a full 40-character SHA.")
+
+    head = _git("rev-parse", "HEAD")
+    if not head:
+        raise SystemExit("refusing to run: cannot resolve the current source revision to check the receipt.")
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", reviewed, head], capture_output=True, check=False
+    ).returncode
+    if reviewed != head and ancestor != 0:
+        raise SystemExit(
+            f"refusing to run: the receipt names reviewed source {reviewed[:12]}, which is not this "
+            f"revision {head[:12]} nor an ancestor of it."
+        )
+
+    digest = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    print(f"Authorisation: receipt {digest[:12]} approves {receipt['contract_id']} at {reviewed[:12]} ... OK")
+    return {"receipt_sha256": digest, "reviewed_sha": reviewed, "head_sha": head,
+            "reviewer": receipt.get("reviewer", ""), "granted_utc": receipt.get("timestamp_utc", "")}
 
 
 def _lock_pins(lock_path: Path) -> dict[str, str]:
@@ -294,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.smoke:
         return smoke(cfg)
 
-    _require_authorisation(contract_path)
+    authorisation = _require_authorisation(contract_path)
     _require_locked_runtime(cfg, contract_path)
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -359,6 +403,9 @@ def main(argv: list[str] | None = None) -> int:
     (args.out / "decision.json").write_text(json.dumps(decision, indent=2, sort_keys=True), encoding="utf-8")
     (args.out / "controls.json").write_text(json.dumps(controls, indent=2, sort_keys=True), encoding="utf-8")
     (args.out / "environment.txt").write_text(environment_lock(cfg, contract_path), encoding="utf-8")
+    (args.out / "authorization.json").write_text(
+        json.dumps(authorisation, indent=2, sort_keys=True), encoding="utf-8"
+    )
 
     print(f"\nWrote {len(records)} run records to {runs_path}")
     print(f"Verdict: {decision['verdict']}")

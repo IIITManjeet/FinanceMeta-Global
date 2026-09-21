@@ -9,8 +9,8 @@
 - Builder(s): **Manjeet Pathak**
 - Lane: `research-workflow-tooling`
 - Governing gate: issue #51 (parent #47)
-- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6` (supersedes v1 to v5; amendments A1-A30 and implementation defects D1-D14 logged in `experiment_contract.json`)
-- Freeze identity: PR #57 head + tag `microstructure-freeze-v6` + CI artifact `microstructure-mechanism-contract-<sha>`
+- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7` (supersedes v1 to v6; amendments A1-A34 and implementation defects D1-D18 logged in `experiment_contract.json`)
+- Freeze identity: PR #57 head + tag `microstructure-freeze-v7` + CI artifact `microstructure-mechanism-contract-<sha>`
   (rule in `experiment_contract.json` `authority.freeze_identity_rule`; the SHA is not embedded because this file is part of the commit it would name)
 - Freeze timestamp UTC: 2026-09-19, amended 2026-09-20
 - Status: `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised pending independent pre-run review
@@ -88,7 +88,7 @@ python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-
 
 ## Amendments after freeze
 
-The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A30), each entry carrying
+The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A34), each entry carrying
 timestamp, old rule, new rule, reason, reviewer reference, whether any frozen-scale outcome had been seen,
 and the superseded commit. No prior rule is ever deleted. Summary of what moved after the initial freeze:
 
@@ -111,6 +111,6 @@ and the superseded commit. No prior rule is ever deleted. Summary of what moved 
   assumed, and the exposure count made exact for both channels.
 
 Implementation defects found before any confirmatory run are recorded separately in
-`freeze.implementation_defects_corrected` (D1-D14). Five of them would have invalidated the comparison
+`freeze.implementation_defects_corrected` (D1-D18). Seven of them would have invalidated the comparison
 had it been run: the floating-point pro-rata tie-break (D1), the missing display replenishment (D2), and
 a decision rule that checked seed count but never seed identity (D5), a pre-run gate that never looked at what was installed (D11), and an authorisation status that no code read (D12).

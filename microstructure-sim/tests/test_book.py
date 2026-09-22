@@ -7,8 +7,12 @@ import pytest
 from mechsim.book import BUY, OWNER_BACKGROUND, OWNER_TRACKED, SELL, Book
 
 
+def empty(mechanism: str = "FIFO") -> Book:
+    return Book(tick=1, mechanism=mechanism, min_allocation_lots=1)
+
+
 def fresh(mechanism: str = "FIFO") -> Book:
-    book = Book(tick=1, mechanism=mechanism)
+    book = empty(mechanism)
     for level in range(1, 4):
         book.add_limit(BUY, 100 - level, 10, OWNER_BACKGROUND)
         book.add_limit(SELL, 100 + level, 10, OWNER_BACKGROUND)
@@ -24,7 +28,7 @@ def test_best_prices_and_spread() -> None:
 
 
 def test_empty_book_reports_none() -> None:
-    book = Book()
+    book = empty()
     assert book.best_bid() is None
     assert book.best_ask() is None
     assert book.mid() is None
@@ -32,7 +36,7 @@ def test_empty_book_reports_none() -> None:
 
 
 def test_cancel_removes_order_and_empties_level() -> None:
-    book = Book()
+    book = empty()
     oid = book.add_limit(BUY, 99, 5, OWNER_BACKGROUND)
     assert book.is_live(oid)
     assert book.cancel(oid) is True
@@ -57,7 +61,7 @@ def test_market_order_walks_multiple_levels() -> None:
 
 
 def test_market_order_against_empty_side_fills_nothing() -> None:
-    book = Book()
+    book = empty()
     book.add_limit(BUY, 99, 10, OWNER_BACKGROUND)
     assert book.execute_market(BUY, 10, t_ms=0.0) == []
 
@@ -70,7 +74,7 @@ def test_oversized_market_order_drains_the_side() -> None:
 
 
 def test_volume_ahead_counts_only_earlier_arrivals_at_same_price() -> None:
-    book = Book()
+    book = empty()
     first = book.add_limit(BUY, 99, 7, OWNER_BACKGROUND)
     second = book.add_limit(BUY, 99, 3, OWNER_TRACKED)
     book.add_limit(BUY, 98, 50, OWNER_BACKGROUND)
@@ -79,7 +83,7 @@ def test_volume_ahead_counts_only_earlier_arrivals_at_same_price() -> None:
 
 
 def test_size_share_is_fraction_of_level_depth() -> None:
-    book = Book()
+    book = empty()
     book.add_limit(BUY, 99, 30, OWNER_BACKGROUND)
     tracked = book.add_limit(BUY, 99, 10, OWNER_TRACKED)
     assert book.size_share(tracked) == pytest.approx(0.25)
@@ -92,7 +96,7 @@ def test_queue_measures_are_zero_for_unknown_order() -> None:
 
 
 def test_resting_orders_filter_by_owner() -> None:
-    book = Book()
+    book = empty()
     book.add_limit(BUY, 99, 5, OWNER_BACKGROUND)
     book.add_limit(BUY, 99, 5, OWNER_TRACKED)
     assert len(book.resting_orders(BUY)) == 2
@@ -100,7 +104,7 @@ def test_resting_orders_filter_by_owner() -> None:
 
 
 def test_non_positive_limit_size_is_rejected() -> None:
-    book = Book()
+    book = empty()
     with pytest.raises(ValueError):
         book.add_limit(BUY, 99, 0, OWNER_BACKGROUND)
 

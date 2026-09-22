@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import inspect
+import json
+
 import pytest
 
-from mechsim.mechanisms import FIFO, PRO_RATA, Resting, allocate
+from mechsim.contract import DEFAULT_CONTRACT, load_config
+from mechsim.mechanisms import FIFO, PRO_RATA, Resting, allocate as _allocate
+
+# The participation floor is a frozen parameter and reaches allocate() from the
+# contract on every call. The tests read it from the same place.
+FLOOR = load_config().min_allocation_lots
+
+
+def allocate(mechanism: str, resting: list[Resting], demand: int) -> dict[int, int]:
+    return _allocate(mechanism, resting, demand, FLOOR)
 
 
 def test_frozen_analytic_sanity_case_fifo() -> None:
@@ -16,6 +28,29 @@ def test_frozen_analytic_sanity_case_fifo() -> None:
 def test_frozen_analytic_sanity_case_pro_rata() -> None:
     resting = [Resting(1, 2, 1), Resting(2, 10, 2)]
     assert allocate(PRO_RATA, resting, 6) == {1: 1, 2: 5}
+
+
+def test_min_allocation_floor_is_loaded_from_the_contract() -> None:
+    """The contract carried the field and the validator pinned it, but allocate()
+    read a module literal that nothing tied to it."""
+    contract = json.loads(DEFAULT_CONTRACT.read_text(encoding="utf-8"))
+    assert FLOOR == contract["mechanisms"]["B"]["min_allocation_lots"] == 1
+    assert "MIN_ALLOCATION_LOTS" not in inspect.getsource(inspect.getmodule(_allocate))
+
+
+def test_allocate_takes_the_floor_on_every_call() -> None:
+    with pytest.raises(TypeError):
+        _allocate(PRO_RATA, [Resting(1, 4, 1), Resting(2, 2, 2)], 3)  # type: ignore[call-arg]
+    with pytest.raises(ValueError):
+        _allocate(PRO_RATA, [Resting(1, 4, 1), Resting(2, 2, 2)], 3, 0)
+
+
+def test_the_floor_changes_pro_rata_allocation() -> None:
+    """Proof the parameter is live: X=4, Y=2, demand 3 splits 2/1 at a one-lot floor
+    and 3/0 at a two-lot floor, because Y's floor share of one lot falls below it."""
+    resting = [Resting(1, 4, 1), Resting(2, 2, 2)]
+    assert _allocate(PRO_RATA, resting, 3, 1) == {1: 2, 2: 1}
+    assert _allocate(PRO_RATA, resting, 3, 2) == {1: 3}
 
 
 @pytest.mark.parametrize("mechanism", [FIFO, PRO_RATA])

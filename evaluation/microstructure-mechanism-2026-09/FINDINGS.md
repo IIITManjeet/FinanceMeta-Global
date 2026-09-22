@@ -5,7 +5,7 @@ cell has been inspected, so there is no result in this document yet. It exists
 now because the contract obliges the exposure below to be reported here, and
 that obligation should not point at a file that does not exist.
 
-Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7` (amendments A1-A34, defects D1-D18) · gate issue #51 · PR #57
+Contract `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v8` (amendments A1-A73, defects D1-D54) · gate issue #51 · PR #57
 
 ## Primary result
 
@@ -16,12 +16,38 @@ Not yet produced. The confirmatory run is not authorised.
 Two channels executed the frozen mechanisms on frozen **development** seeds
 before authorisation. Neither ran at frozen scale and neither touched the
 confirmation seed set, but both are unblinding of the comparison family and are
-reported here regardless of what the confirmatory run eventually shows.
+reported here regardless of what the confirmatory run eventually shows. Two
+further channels touched **confirmation** seeds without producing anything
+that was written, printed or seen; they are recorded because the record is
+written by rule, not by judgement about whether an item is embarrassing.
 
 | Channel | Seeds | Scale | Verdict printed | Found by |
 |---|---|---|---|---|
 | `--quick` verification path | 0–5 | 1,000 + 5,000 events, 108 runs | **yes** | the reviewer |
 | automated test suite | 0, 1, 2, 3, 7, 11 | 200–4,000 events, paired arms; 23 frozen-seed call sites across 2 CI runs (`678cb1a`, `cc7627c`) | no | adversarial self-audit |
+| authorisation-bypass test, one commit | 100 | 50 + 100 events, one arm, one run per CI run | no | adversarial self-audit |
+| gate stubbed during audit, throwaway clone | unknown, possibly none | frozen scale, one arm at most, roughly twenty seconds | no | self-declared during audit |
+
+The fourth channel is the one that bears describing. An auditor testing whether
+the receipt gate could be bypassed replaced it with a no-op in a throwaway
+clone and invoked the confirmatory command. The process ran for about twenty
+seconds before it was killed. How far it got is not established. The auditor
+reported seeing no progress line, but stdout was captured by the test runner,
+so that is not evidence either way, and `verify_controls` runs first at frozen
+scale on sentinel seeds and takes an unknown share of that time; the number of
+confirmation-seed cells executed may well be zero. No estimate is given here,
+because none can be regenerated, and a disclosed figure that cannot be
+regenerated is the defect already recorded as D13. What is established is that
+run records are held in memory until the whole matrix completes, so no
+`runs.jsonl`, `decision.json`, `summary.json` or `controls.json` was written;
+that no metric value or verdict was printed or observed by anyone; and that the
+real repository was untouched. The informational content is nil on any reading:
+a single arm at most, no pairing, no comparison, no decision rule, and nothing
+retained. It is also the direct reason D26
+exists: the test guarding the gate asserted only that it raised, so a gate that
+silently returned started the real run. The confirmation seed set is left as
+it is, for the reason given under D9; whether this incident warrants a fresh
+set is the reviewer's call.
 
 The single exposed outcome is the word `UNSTABLE`, printed once in
 [run 35474722869](https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869).
@@ -52,10 +78,13 @@ confirmatory run uses.
 
 ## Implementation defects corrected before any run
 
-Recorded because seven of them (D1, D2, D5, D11, D12, D15 and D16) would have
-invalidated the comparison had it been run. D1 to D14 were found by adversarial
-self-audit; D15 to D18 were found by the reviewer in the pre-run technical
-review of v6.
+Recorded because fourteen of them (D1, D2, D5, D11, D12, D15, D16, D19, D20, D21, D22, D32, D40 and D41) would have invalidated the comparison had it been run. D1 to D14 were
+found by adversarial self-audit; D15 to D18 were found by the reviewer in the
+pre-run technical review of v6; D19 to D30 were found by three independent
+adversarial audits of the v8 draft, after v7 had reported the reviewer's P0-1
+and P0-2 closed. They were not closed, and that is stated here plainly rather
+than folded into the fix descriptions. D31 was found by the builder while
+closing D22.
 
 - **D1 — pro-rata tie-break decided by floating-point noise.** Exactly equal
   largest-remainder fractions were ordered by float error rather than
@@ -150,6 +179,18 @@ Found in a third adversarial audit, after the second round was fixed:
   behind it. The confirmatory path now refuses to start unless the contract
   records an AUTHORIZED status, before any output directory is created.
 
+- **D13 — a disclosed figure could not be regenerated.** The residual
+  replenishment asymmetry was published as 42 percent from a one-off
+  measurement at reduced scale; at the frozen scale it is 24.3 percent. A
+  companion mean-displayed-size figure was produced by no committed code at all
+  and reversed direction under a plausible alternative definition. Both were
+  withdrawn rather than overwritten, and a committed diagnostic now produces
+  the number so it can be checked instead of asserted.
+- **D14 — the frozen-seed override never reached the guard it claimed to
+  bypass.** The CLI flag was dead code: it failed closed, which hid the fact
+  that the runtime guard did not consult it. Forwarding it turned the dead flag
+  into a real bypass, which is D15.
+
 Found by the reviewer in the pre-run technical review of v6:
 
 - **D15 — the single-run CLI could self-authorise a frozen outcome.** Its
@@ -174,6 +215,185 @@ Found by the reviewer in the pre-run technical review of v6:
   field in the contract. It is now an explicit numeric field, pinned and loaded
   with no default.
 
+Found by three independent adversarial audits of the v8 draft, after the
+reviewer's P0-1 and P0-2 had been reported closed:
+
+- **D19 — the frozen seed set was whatever the caller's contract said it was.**
+  `--contract` is an unvalidated path, and both the CLI and the runtime guard
+  in `run_once` read the protected seeds from it, so a copy with empty seed
+  lists executed development seed 0 and printed the outcome. P0-1 was not
+  closed. The protected set is now the union of the passed contract's and the
+  canonical in-repo contract's seeds, and the guard refuses everything if the
+  canonical contract cannot be read.
+- **D20, D21, D22 — the receipt gate proved a commit was reachable, not that the
+  executing bytes were that commit.** It never looked at the working tree, so
+  uncommitted edits to the decision rule passed; it accepted any ancestor of
+  HEAD, so any number of unreviewed commits passed; and it never compared the
+  contract in use with the reviewed blob, so a copy with `UNSTABLE.alpha` at
+  0.9999 and the same `contract_id` was accepted with a self-written receipt.
+  P0-2 was not closed. The gate now requires HEAD to equal the reviewed SHA
+  exactly, the tree to be clean apart from the receipt, and the contract at its
+  canonical path to be byte-identical to `git show <sha>:<path>`. The contract
+  is pinned to LF in `.gitattributes` so a checkout cannot rewrite its bytes.
+- **D23 — the tag cross-check accepted anything `rev-parse` resolves.**
+  `reviewed_tag: "HEAD"`, a branch name or a short SHA satisfied it vacuously.
+  The tag must now equal the contract's `freeze_tag` and resolve through
+  `refs/tags/`.
+- **D24 — the confidence level of the primary decision was a keyword default.**
+  `bca_interval` carried `alpha=0.05` and `decide()` never passed it; the
+  contract had only prose. The same class as D18, which had been reported
+  closed. `interval_alpha` is now a field, pinned, reconciled with the prose,
+  loaded with no default and passed to every bootstrap call.
+- **D25 — the amendment log's append-only property lived in git history, not in
+  the validator.** Deleting A17 and renumbering passed. The validator now reads
+  the contract at the previous freeze tag and requires the current log to
+  extend it exactly, failing closed if the tag cannot be resolved; the contract
+  workflow checks out full history so it can.
+- **D26 — the test guarding the confirmatory entry point asserted only that it
+  raised.** A gate that returned would have started the real run, and in the
+  audit it did. A structural test now requires the gate to be the first thing
+  `main()` does after argument parsing, with nothing able to catch it, and it
+  never calls `main()`.
+- **D27 — the pro-rata participation floor was a module literal** that the
+  contract's field could drift from silently. It is carried on the configuration
+  and passed to `allocate()` on every call; the robustness cell's constant size
+  distribution, also a literal, is bound the same way.
+- **D28 — the authorisation predicate was pinned by substrings of prose.** A
+  `predicate_kind` field is pinned instead; the prose is description only.
+- **D29 — the contract still described the pre-D16 gate**, saying the run
+  refuses unless `confirmatory_status` is AUTHORIZED, which no code reads. The
+  text now describes the receipt gate.
+- **D30 — `allow_frozen_seed=True` was sufficient**, and the scanner keeping it
+  out of tests looked at `src/` only, the D9 shape again. The flag is now
+  honoured only for a contract whose receipt has been validated in the same
+  process, so it is inert from a test and no scanner exemption exists.
+- **D31 — nothing tied the executing code to the reviewed worktree.** A package
+  installed elsewhere would have passed a clean tree at the reviewed SHA. The
+  gate refuses unless the package file lies inside that worktree.
+
+- **D32 — byte identity covered one file.** The gate compared the contract with
+  the reviewed blob and trusted every other tracked file to an empty
+  `git status`, but `git status` trusts the index. With
+  `update-index --skip-worktree`, an edited decision rule passed; the same
+  technique on `reproduce.py` let a hollowed-out gate accept a receipt reading
+  `approved: false` with an all-zero SHA and grant the real contract id. The
+  claim that the gate proved the executed bytes were the reviewed bytes was
+  true of one JSON file. The gate now walks `git ls-tree` and compares the blob
+  hash of the bytes on disk for every tracked path, which the index cannot
+  influence; `git status` is kept only for untracked additions.
+- **D33 — the canonical contract was an unverified anchor.** `frozen_seeds`
+  read it from disk, and nothing outside the receipt gate checks it, so editing
+  it in place emptied the protected set and the guard admitted development seed
+  0. This is D19 moved one hop, from the path a caller supplies to the fixed
+  path nothing double-checks. The set is now a union of three, including the
+  contract as committed at HEAD. The bypass was demonstrated at the guard
+  function; it was not carried through to execution, because that would have
+  meant running a frozen seed.
+- **D34 — two frozen parameters were bound but not pinned.** Replacing
+  `attenuation_ratio_max` and `unstable_sign_test_alpha` with literals left the
+  whole suite passing. The binding had been checked from contract to `Config`
+  and never from `Config` to use, which is why the class recorded as closed in
+  D18 and D24 came back. D18's verification text is corrected to say what it
+  actually established.
+- **D35 — the frozen-seed grant was keyed on a free-text string.** Any
+  configuration sharing the contract id satisfied it, whatever bytes it came
+  from. The grant is now keyed on the id together with the sha256 of the
+  contract.
+- **D36 — the written record drifted where nothing checked it.** The amendment
+  summary here skipped A25 to A35 and two defects had no entry, because the
+  validator read `PROTOCOL.md` and `brief.md` and never opened this file. It
+  now requires this document to account for every defect the contract carries.
+
+- **D37 — a required field was never produced.** The data contract asks for a
+  record sha256 for every run beside the intent-stream digest. It was listed
+  from the freeze and pinned by nothing, so nothing failed while it went
+  undelivered, and a reader had no way to tell an altered run record from an
+  original. `to_record` now carries a digest of itself, and the required fields
+  are a machine-readable list the validator checks.
+- **D38 — two required reported artifacts were produced by nothing.** The
+  contract requires a mechanism comparison table and a latency sensitivity plot;
+  the run wrote only JSON, so both would have been made by hand and sent as
+  figures no committed code generates, which is what D13 was about. The run now
+  writes `comparison.md` and `latency_sensitivity.svg`. The plot is SVG built in
+  this repository, so no plotting dependency enters the hashed wheel lock.
+- **D39 — the decision metric was a literal.** Which metric decides the
+  experiment is the most consequential frozen choice the contract makes, and it
+  was the last one still written into source. It is read from the contract now.
+- **D40 — verifying the source did not prove what the interpreter runs.** A
+  cached `.pyc` whose header matches its source is used in preference to that
+  source, and `__pycache__` is untracked and ignored, so the gate's own
+  `git status` call reported nothing for it and its filter read only untracked
+  entries in any case. An audit showed bytecode planted there executing in
+  place of source that still hashed correctly, and caches for exactly these
+  modules were sitting in the working repository. The gate now requires the
+  import path to hold reviewed files and nothing else.
+- **D41 — the gate refused every file on a checkout that converts line
+  endings.** The walk hashed raw bytes, and the committed blobs are LF, so a
+  CRLF working tree differed from every blob while being exactly what git would
+  record. It went unnoticed because the tree was checked with `git status`,
+  which normalises, rather than with the walk itself. The walk now asks git for
+  the object id it would store.
+- **D42 — the comparison table differenced a measure the contract forbids
+  differencing.** The queue measure is volume ahead in lots under FIFO and a
+  size share under pro-rata; the contract says in terms that the two are never
+  differenced. The delivered table subtracted one from the other. No test
+  caught it because the fixture used only the two metrics where differencing is
+  valid. Those metrics are a machine-readable list now, and the table reports
+  them side by side with no difference column.
+- **D43 — a cache remembered a failure as if it were an answer.** The committed
+  canonical seed set was cached on first use including when the read failed, so
+  one transient git error disabled that layer for the life of the process. Only
+  successful reads are cached now.
+- **D44 — a derived configuration inherited the authorisation.** The grant was
+  keyed on the contract id and the file digest, both of which
+  `dataclasses.replace` copies unchanged, so a configuration with an arbitrary
+  scale, horizon or seed set satisfied it. The grant is keyed on the
+  configuration itself now.
+- **D45 — the required fields and artifacts were pinned in one direction
+  only.** Each was compared with a list inside the validator, and nothing
+  compared either with what the code produces. That is how the record digest
+  went undelivered from the freeze onwards, and the fix for it left the same
+  direction unchecked.
+- **D46 — the check against narrative drift could itself be satisfied
+  vacuously.** Any range counted as covering the amendments inside it, so a
+  single line naming the whole span answered for every amendment at once. A
+  range wide enough to swallow the log no longer counts.
+- **D47 — a test did not test half of what it named.** It corrupted two files
+  by replacing a substring present in one and absent from the other, so the
+  second edit was a silent no-op, and it passed on Windows only because writing
+  the text back rewrote the line endings. The `--assume-unchanged` bypass had
+  no coverage at all. It appends bytes now and asserts the edit landed.
+- **D48 — a binding was pinned by reading the source text.** Splitting the
+  literal in two and adding a dead reference to the contract field passed it. A
+  behavioural test varies the metric and watches the statistic follow.
+
+- **D49 — the package only had to be somewhere inside the worktree.** A second
+  copy under an ignored directory satisfied the check, and the scan for
+  unreviewed importable files covered the source root alone, so `build/`,
+  `egg-info/` and the tests' caches were unexamined by it and by git at once.
+  The editable install's `.pth` file, which holds the path actually imported,
+  lives outside the repository and is reviewed by nothing. The executing
+  package must now be the reviewed copy at its canonical path.
+- **D50 — the artifacts check searched the source for a filename.** Deleting
+  the write and leaving the name in a comment passed it. The artifacts are
+  written by a function the test calls, and the test reads the directory
+  afterwards. D45 closed this direction for the run record and left it open
+  here, while saying otherwise.
+- **D51 — the count of invalidating defects was wrong in both documents.** The
+  contract's severity fields marked fourteen; the prose said eleven. The
+  sentence was edited in the commit that added three more, and the edit
+  silently failed to match. The validator cross-foots the two now.
+- **D52 — the latency plot would plot a forbidden difference.** The table was
+  taught that the queue measure is never differenced across mechanisms and its
+  neighbour in the same module was not. It refuses now.
+- **D53 — a cache that never cached anything.** The store was unreachable
+  because the success path returned from inside the `try`, so nothing was kept
+  in either direction, and the test written for it passed because the cache was
+  always empty. The cache is gone; every call reads fresh.
+- **D54 — negative zero printed as `-0`.** The guard against collapsing a small
+  number to zero tested inequality with `0.0`, which is false for `-0.0`, so an
+  exact zero read as a small negative.
+
 ## Limitations declared before the run
 
 - Zero-intelligence agents do not inflate order size, so the simulator cannot
@@ -190,6 +410,25 @@ Found by the reviewer in the pre-run technical review of v6:
   alone.
 - Development seeds 0–5, 7 and 11 are burned. Any future use of the development
   set is descriptive only.
+- The receipt gate depends on git: it refuses in a clone without the freeze tag,
+  with any untracked or modified file other than the receipt, and with any file
+  on the import path that the reviewed tree does not contain, which includes a
+  compiled cache. Each refusal names its cause.
+  This is deliberate; the alternative is a gate that can be talked past.
+- The gate cannot verify the bytecode that was already loaded in order to run
+  it. It refuses when a cache is present, so an operator following the
+  documented procedure runs from source, and the reproduction command disables
+  bytecode caching; but a cache planted before the process starts could have
+  supplied the gate itself. No in-process check can close that, and it is
+  stated rather than implied.
+- The receipt's reviewer field is free text. There is no signature and no
+  identity check: the gate records who the receipt claims the reviewer was and
+  proves nothing about it. Receipt provenance is a paperwork control.
+- The append-only guarantee is only as strong as the `microstructure-freeze-v7`
+  tag is immutable upstream. Force-moving it makes the comparison pass
+  vacuously, because the previous document becomes the current one. Nothing in
+  this repository can prove an upstream tag has not been moved, so that
+  guarantee rests on repository governance as well as on code.
 
 ## Continue / stop decision
 

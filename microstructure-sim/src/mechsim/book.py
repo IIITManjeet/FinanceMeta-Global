@@ -41,8 +41,9 @@ class Fill:
 
 @dataclass
 class Book:
-    tick: int = 1
-    mechanism: str = "FIFO"
+    tick: int
+    mechanism: str
+    min_allocation_lots: int
     _bids: dict[int, list[Order]] = field(default_factory=dict)
     _asks: dict[int, list[Order]] = field(default_factory=dict)
     _index: dict[int, Order] = field(default_factory=dict)
@@ -163,7 +164,7 @@ class Book:
             spread = self.spread_ticks()
 
             resting = [Resting(o.order_id, o.size, o.arrival_seq) for o in queue]
-            allocation = allocate(self.mechanism, resting, remaining)
+            allocation = allocate(self.mechanism, resting, remaining, self.min_allocation_lots)
             if not allocation:
                 break
 

@@ -74,8 +74,12 @@ def sign_test_p(n_plus: int, n_minus: int) -> float:
     return min(1.0, 2.0 * tail)
 
 
-def bca_interval(diffs: np.ndarray, resamples: int, seed: int, alpha: float = 0.05) -> Interval:
-    """BCa bootstrap CI for the mean of the paired differences."""
+def bca_interval(diffs: np.ndarray, resamples: int, seed: int, alpha: float) -> Interval:
+    """BCa bootstrap CI for the mean of the paired differences.
+
+    alpha carries no default. The confidence level of the NULL rule is a frozen
+    parameter and is read from the contract, not from a keyword here.
+    """
     n = diffs.size
     if n < 3:
         raise ValueError(f"bootstrap needs at least 3 paired differences, got {n}")
@@ -174,7 +178,7 @@ def paired_differences(
 
 def decide(records: list[dict], cfg) -> dict:
     """Apply the frozen negative-result criteria to a finished run set."""
-    metric = "implementation_shortfall_bps"
+    metric = cfg.decision_metric_id
     baseline = cfg.matched_baseline_ms
     ratio_max = cfg.attenuation_ratio_max
 
@@ -185,7 +189,7 @@ def decide(records: list[dict], cfg) -> dict:
             f"decision cell has {diffs.size} paired differences, expected {expected}; "
             "the decision metric is defined for every retained run, so this is a bug"
         )
-    interval = bca_interval(diffs, cfg.bootstrap_resamples, cfg.bootstrap_seed)
+    interval = bca_interval(diffs, cfg.bootstrap_resamples, cfg.bootstrap_seed, cfg.interval_alpha)
 
     n_plus = int((diffs > 0).sum())
     n_minus = int((diffs < 0).sum())
@@ -198,7 +202,7 @@ def decide(records: list[dict], cfg) -> dict:
         d = paired_differences(records, latency, cell, metric, cfg.confirmation_seeds)
         if d.size != expected:
             raise ValueError(f"cell (latency={latency}, {cell}) has {d.size} pairs, expected {expected}")
-        return bca_interval(d, cfg.bootstrap_resamples, cfg.bootstrap_seed)
+        return bca_interval(d, cfg.bootstrap_resamples, cfg.bootstrap_seed, cfg.interval_alpha)
 
     zero_ci = cell_interval(0, "main")
     robust_ci = cell_interval(baseline, "robustness")

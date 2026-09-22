@@ -1,7 +1,7 @@
 # Market microstructure sprint: frozen protocol (one page)
 
-**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7` (supersedes v1 to v6) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-20
-**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v7`
+**Contract** `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v8` (supersedes v1 to v7) · **Status** `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED` · **Confirmatory run** `NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW` · **Frozen** 2026-09-19, amended 2026-09-23
+**Builder** Manjeet Pathak · **Gate** issue #51 (parent #47) · **PR** #57 · **Tag** `microstructure-freeze-v8`
 Machine-readable detail and the append-only amendment log: `experiment_contract.json`
 
 ## Question
@@ -27,12 +27,14 @@ Constant per-agent one-way, no jitter. Tracked agent swept over **{0, 1, 2, 5, 1
 Failed seeds may **not** be discarded from either set. Bootstrap seed 424242. Run matrix, mechanisms, metrics, thresholds, labels, latency points and assumptions are all unchanged.
 
 ## Recorded exposure
-Two channels executed the frozen mechanisms on frozen development seeds before authorisation.
+Four channels are recorded. Two executed the frozen mechanisms on frozen development seeds before authorisation; two touched confirmation seeds without producing anything that was written, printed or seen.
 
 1. The former `--quick` path: seeds 0-5, 108 runs at reduced scale (1,000 + 5,000 events), and it printed a verdict to the CI log. Declared by the reviewer.
 2. The automated test suite: seeds 0, 1, 2, 3, 7 and 11, paired arms at the reference cell and other latencies, on every CI push. No verdict computed. Found by adversarial self-audit and declared here.
+3. A test added while closing the exposure gaps executed confirmation seed 100 once per CI run, one arm at 150 events, no comparison. Found by adversarial self-audit.
+4. During adversarial audit of the v8 draft, the authorisation gate was stubbed in a throwaway clone and the confirmatory command invoked; the pipeline started on confirmation seeds at frozen scale, one arm, and was killed after about twenty seconds. No record, metric or verdict was written, printed or observed, and the real repository was untouched.
 
-Both runs, logs and artifacts are preserved; no history has been rewritten, and nothing was tuned in response. `--quick` is removed and `--smoke` replaces it: sentinel seeds outside every frozen set, shape and invariant checks only, the decision rule never called, no run record and no verdict. Pre-run controls also run on sentinel seeds and never read the frozen sets, and a meta-test fails the build if any test module executes a frozen seed. The exposure is reported in `FINDINGS.md`.
+Every run, log and artifact that exists is preserved; no history has been rewritten, and nothing was tuned in response. `--quick` is removed and `--smoke` replaces it: sentinel seeds outside every frozen set, shape and invariant checks only, the decision rule never called, no run record and no verdict. Pre-run controls also run on sentinel seeds and never read the frozen sets, and a meta-test fails the build if any test module executes a frozen seed. The exposure is reported in `FINDINGS.md`.
 
 ## Metrics (all five primary, reported every run)
 fill probability · implementation shortfall (bps) · spread at execution · queue position **and** wait time · price impact.
@@ -78,4 +80,5 @@ python -m pip install --require-hashes -r microstructure-sim/requirements.lock.t
 python -m pip install -e microstructure-sim --no-deps --no-build-isolation
 python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json
 ```
+The confirmatory command refuses to start unless a receipt at `evaluation/microstructure-mechanism-2026-09/authorization.json` approves this contract id at the freeze tag and the exact HEAD SHA, the working tree is clean apart from that receipt, the contract on disk is byte-identical to the reviewed blob, and the executing package lives inside that worktree. A commit after review needs a fresh review.
 Outcome-blind pipeline check, safe before authorisation: `python -m mechsim.reproduce --smoke`

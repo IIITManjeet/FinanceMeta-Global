@@ -17,15 +17,26 @@ and price impact is measured there too.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+import json
+
+from dataclasses import dataclass, field, replace
 
 from .book import BUY, OWNER_BACKGROUND, OWNER_TRACKED, SELL, Book
-from .contract import Config
+from .contract import Config, frozen_seeds
 from .flow import BOOK_RELATIVE, KIND_CANCEL, KIND_LIMIT, KIND_MARKET, Intent, generate_stream, stream_digest
 from .mechanisms import FIFO
 
 
 TRACKED_ID_BASE = 1_000_000_000
+
+# (contract id, sha256 of the contract bytes) pairs whose authorisation receipt
+# has been validated in this process. Only reproduce._require_authorisation
+# adds to it. allow_frozen_seed=True is therefore inert anywhere a receipt has
+# not been checked, tests included, and no scanner has to exempt the one
+# legitimate caller. The digest is part of the key because the id is free text
+# that any Config can carry; the grant covers the reviewed bytes, not a name.
+AUTHORISED_CONTRACTS: set[tuple[str, str, str]] = set()
 
 
 @dataclass
@@ -55,7 +66,15 @@ class RunResult:
     flags: list[str] = field(default_factory=list)
 
     def to_record(self) -> dict:
-        return {
+        """The run record, carrying a digest of itself.
+
+        The data contract requires a record sha256 alongside the intent-stream
+        one. The stream digest shows both arms consumed the same flow; this one
+        lets a reader check a single run record has not been altered after the
+        fact, and gives the byte-identical replay control something to compare
+        that does not depend on how the file was serialised.
+        """
+        record = {
             "mechanism": self.mechanism,
             "seed": self.seed,
             "latency_ms": self.latency_ms,
@@ -78,6 +97,10 @@ class RunResult:
             "market_no_ops": self.market_no_ops,
             "flags": sorted(self.flags),
         }
+        record["record_sha256"] = hashlib.sha256(
+            json.dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        return record
 
 
 def _apply_background(book: Book, intent: Intent, cfg: Config) -> str | None:
@@ -110,6 +133,31 @@ def _apply_background(book: Book, intent: Intent, cfg: Config) -> str | None:
     raise ValueError(f"unknown intent kind: {intent.kind}")
 
 
+def _guard_frozen_seed(cfg: Config, seed: int, allow_frozen_seed: bool) -> None:
+    """Refuse a frozen seed unless the caller opts in and a receipt has been validated.
+
+    This is a runtime guard rather than a lint rule: the previous protection was
+    a static scan of test modules, which an aliased constant, a loop variable or
+    a helper call walks straight past. The opt-in flag alone is not enough
+    either. A flag is one keyword away from any test, so it is honoured only
+    once reproduce._require_authorisation has accepted a receipt for this
+    contract, id and bytes both, in this process.
+    """
+    if seed not in frozen_seeds(cfg):
+        return
+    if not allow_frozen_seed:
+        raise ValueError(
+            f"refusing to run frozen seed {seed} without allow_frozen_seed=True: this would "
+            "produce an outcome on a development or confirmation seed"
+        )
+    if (cfg.contract_id, cfg.contract_sha256, cfg.identity()) not in AUTHORISED_CONTRACTS:
+        raise ValueError(
+            f"refusing to run frozen seed {seed}: allow_frozen_seed=True is honoured only after an "
+            f"authorisation receipt for {cfg.contract_id} at {cfg.contract_sha256[:12]} has been validated "
+            "in this process"
+        )
+
+
 def run_once(
     cfg: Config,
     mechanism: str,
@@ -121,29 +169,22 @@ def run_once(
 ) -> RunResult:
     """Run one cell and return its record.
 
-    Refuses a development or confirmation seed unless the caller opts in. This
-    is a runtime guard rather than a lint rule: the previous protection was a
-    static scan of test modules, which an aliased constant, a loop variable or a
-    helper call walks straight past. Only the authorised confirmatory run passes
-    allow_frozen_seed=True.
+    A development or confirmation seed is refused unless the authorised
+    confirmatory run is the caller; see _guard_frozen_seed.
 
     generate_stream is deliberately not guarded: it emits a deterministic intent
     stream and no outcome, and the published per-seed identity digests are
     produced from it.
     """
-    if not allow_frozen_seed and seed in set(cfg.seeds) | set(cfg.confirmation_seeds):
-        raise ValueError(
-            f"refusing to run frozen seed {seed} without allow_frozen_seed=True: this would "
-            "produce an outcome on a development or confirmation seed"
-        )
+    _guard_frozen_seed(cfg, seed, allow_frozen_seed)
     run_cfg = cfg
     if size_distribution is not None:
-        run_cfg = Config(**{**cfg.__dict__, "size_distribution": size_distribution})
+        run_cfg = replace(cfg, size_distribution=size_distribution)
 
     intents = generate_stream(run_cfg, seed, run_cfg.total_events)
     digest = stream_digest(intents)
 
-    book = Book(tick=run_cfg.tick, mechanism=mechanism)
+    book = Book(tick=run_cfg.tick, mechanism=mechanism, min_allocation_lots=run_cfg.min_allocation_lots)
     counters = {"limit_no_op": 0, "cancel_no_op": 0, "market_no_op": 0}
     ref_mid = float(run_cfg.initial_mid)
 

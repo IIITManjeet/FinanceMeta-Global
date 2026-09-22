@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .contract import load_config
+from .contract import frozen_seeds, load_config
 from .mechanisms import FIFO, MECHANISMS
 from .reproduce import main as reproduce_main
 from .reproduce import verify_controls
@@ -44,9 +44,10 @@ def main(argv: list[str] | None = None) -> int:
     # A flag that unlocked a frozen seed here would let a confirmation outcome be
     # produced, and a confirmation seed inspected individually, before the
     # authorised full comparison. Frozen outcomes are reachable only through
-    # mechsim.reproduce, behind the authorisation gate.
-    frozen = set(cfg.seeds) | set(cfg.confirmation_seeds)
-    if args.seed in frozen:
+    # mechsim.reproduce, behind the authorisation gate. The frozen set comes
+    # from the canonical contract as well as the one passed, because --contract
+    # is an arbitrary path and a copy with empty seed lists used to unlock it.
+    if args.seed in frozen_seeds(cfg):
         raise SystemExit(
             f"refusing to run frozen seed {args.seed}: development and confirmation seeds are "
             "executable only by the authorised confirmatory run (mechsim.reproduce). "

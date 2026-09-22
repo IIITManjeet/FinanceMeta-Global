@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Verify exact source binding
@@ -77,6 +78,7 @@ jobs:
             evaluation/microstructure-mechanism-2026-09/experiment_contract.json \
             evaluation/microstructure-mechanism-2026-09/PROTOCOL.md \
             evaluation/microstructure-mechanism-2026-09/brief.md \
+            evaluation/microstructure-mechanism-2026-09/FINDINGS.md \
             scripts/validate_microstructure_contract.py \
             tests/test_validate_microstructure_contract.py \
             >> microstructure-mechanism-contract-digests.txt

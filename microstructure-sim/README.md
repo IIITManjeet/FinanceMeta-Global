@@ -1,6 +1,6 @@
 # mechsim: mechanism allocation under frozen order flow
 
-**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v7, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
+**Author:** Manjeet Pathak · **License:** MIT · **Status:** M1 / E1. Executable, contract v8, `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised
 
 A deterministic discrete-event limit-order-book simulator built for one bounded
 question: under an identical synthetic order-flow realization and latency model,
@@ -78,6 +78,14 @@ latency points × 30 seeds, plus the 60-run robustness cell), and writes to
 
 Roughly 13 minutes single-threaded at frozen scale.
 
+It does not start without authorisation. A receipt at
+`evaluation/microstructure-mechanism-2026-09/authorization.json` must approve
+this contract id at the freeze tag and the exact HEAD SHA, the working tree
+must be clean apart from that receipt, the contract on disk must be
+byte-identical to the reviewed blob, and the package executing must live inside
+that worktree. A commit after review needs a fresh review. Only a validated
+receipt lets `run_once` execute a frozen seed; the opt-in flag alone is inert.
+
 `--smoke` is the only safe pre-authorisation check. It is outcome-blind by
 construction: sentinel seeds outside every frozen set, shape and invariant
 checks only, the decision rule never called, no run record and no verdict. The
@@ -100,13 +108,16 @@ python -m mechsim.cli run --mechanism PRO_RATA --seed 900000001 --latency-ms 5
 python -m pytest microstructure-sim -q
 ```
 
-106 tests covering allocation semantics for both mechanisms, the frozen analytic
+162 tests covering allocation semantics for both mechanisms, the frozen analytic
 and under-allocation cases, book mechanics, the intent-stream schema, the
 identity and determinism controls, Perold shortfall over the whole parent order,
 the paired bootstrap, sign test and verdict precedence, and guards that keep the
-smoke path outcome-blind. `run_once` refuses a development or confirmation seed
-at runtime unless the caller explicitly opts in, which only the authorised
-confirmatory run does, so the CLI example above uses a sentinel seed.
+smoke path outcome-blind and the receipt gate honest, the latter against a
+throwaway git repository built per test. `run_once` refuses a development or
+confirmation seed at runtime unless an authorisation receipt has been validated
+in the same process, which only the confirmatory run does, so the CLI example
+above uses a sentinel seed. The protected seed set is read from the canonical
+contract as well as from any contract passed, so a doctored copy cannot unlock it.
 
 ## Declared limitations
 

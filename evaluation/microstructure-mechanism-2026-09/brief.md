@@ -9,10 +9,10 @@
 - Builder(s): **Manjeet Pathak**
 - Lane: `research-workflow-tooling`
 - Governing gate: issue #51 (parent #47)
-- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7` (supersedes v1 to v6; amendments A1-A34 and implementation defects D1-D18 logged in `experiment_contract.json`)
-- Freeze identity: PR #57 head + tag `microstructure-freeze-v7` + CI artifact `microstructure-mechanism-contract-<sha>`
+- Contract: `FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v8` (supersedes v1 to v7; amendments A1-A73 and implementation defects D1-D54 logged in `experiment_contract.json`)
+- Freeze identity: PR #57 head + tag `microstructure-freeze-v8` + CI artifact `microstructure-mechanism-contract-<sha>`
   (rule in `experiment_contract.json` `authority.freeze_identity_rule`; the SHA is not embedded because this file is part of the commit it would name)
-- Freeze timestamp UTC: 2026-09-19, amended 2026-09-20
+- Freeze timestamp UTC: 2026-09-19, amended 2026-09-23
 - Status: `PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED`; confirmatory run not authorised pending independent pre-run review
 - Development seeds 0-29 with 0-5, 7 and 11 exposed; confirmation seed set 100-129 pre-registered and disjoint, and it is what the confirmatory run uses
 
@@ -88,7 +88,7 @@ python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-
 
 ## Amendments after freeze
 
-The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A34), each entry carrying
+The machine-readable log is `experiment_contract.json` `freeze.amendments` (A1-A73), each entry carrying
 timestamp, old rule, new rule, reason, reviewer reference, whether any frozen-scale outcome had been seen,
 and the superseded commit. No prior rule is ever deleted. Summary of what moved after the initial freeze:
 
@@ -110,7 +110,53 @@ and the superseded commit. No prior rule is ever deleted. Summary of what moved 
   identity enforced rather than seed count, the robustness latency read from the contract instead of
   assumed, and the exposure count made exact for both channels.
 
+- **A25-A35** follow a third and fourth self-audit and the reviewer's pre-run
+  technical review of v6: the lock reduced to wheels with no source fallback,
+  the install command given with `--no-build-isolation` everywhere it appears,
+  the churn figure withdrawn and replaced by a committed diagnostic, the
+  single-run override removed, authorisation moved out of the contract into a
+  separate receipt, the predicate made an exact boolean, the UNSTABLE
+  significance level moved into the contract, and the receipt required to name
+  the reviewed tag as well as the SHA.
+- **A36-A50** follow three independent adversarial audits of the v8 draft, which showed the reviewer's
+  P0-1 and P0-2 had been reported closed in v7 when they were not: the frozen seed set is now defined by
+  the canonical contract and not by whichever file is passed, the frozen-seed opt-in is inert until a
+  receipt has been validated in the same process, the receipt gate requires the freeze tag itself, HEAD
+  exactly, a clean tree and a byte-identical contract, the interval alpha, the participation floor and
+  the robustness distribution are read from the contract rather than from source, the amendment log is
+  checked against the previous freeze tag, the predicate is pinned by kind, and a fourth exposure
+  channel is recorded.
+- **A51-A58** follow a second round of three independent adversarial audits,
+  which showed the first round's repairs were themselves incomplete: the gate
+  now verifies every tracked file against the reviewed tree rather than
+  trusting `git status`, the frozen seed set takes in the contract as committed
+  at HEAD so an in-place edit cannot empty it, frozen parameters are pinned at
+  the point of use rather than at load, the frozen-seed grant is keyed on the
+  contract's bytes, and three pieces of prose that described controls the code
+  does not implement are corrected.
+- **A59** follows a delivery check against this brief's own data contract: the required
+  per-run fields are now a machine-readable list in the contract rather than a sentence
+  here, because a field required from the freeze had gone undelivered without failing
+  anything.
+- **A60-A61** follow the same delivery check: the required comparison table and latency
+  sensitivity plot are now written by the run rather than assembled by hand afterwards, and
+  the decision metric is named by the contract rather than by a literal in the decision rule.
+- **A62-A69** follow a third round of independent audits, which found the second round's
+  repairs incomplete in turn: the gate now requires the import path to hold reviewed files
+  and nothing else, because verifying source does not prove which bytecode runs; the tree
+  comparison asks git for the object id it would record, because hashing raw bytes refused
+  every file on a checkout that converts line endings; the metrics that may not be
+  differenced across mechanisms are named in the contract; the frozen-seed grant is keyed on
+  the configuration rather than on two copyable strings; and the contract's required fields
+  and artifacts are checked against what the code actually produces.
+- **A70-A73** follow a fourth round of independent audits, which found the checks themselves
+  weaker than the things they check: the executing package must now be the reviewed copy at its
+  canonical path rather than merely somewhere inside the worktree, the declared artifacts are
+  written by a function a test can call and inspect, the latency plot refuses a metric that may
+  not be differenced, and the validator cross-foots the narrative's count of invalidating
+  defects against the severity fields.
+
 Implementation defects found before any confirmatory run are recorded separately in
-`freeze.implementation_defects_corrected` (D1-D18). Seven of them would have invalidated the comparison
+`freeze.implementation_defects_corrected` (D1-D54). Fourteen of them would have invalidated the comparison
 had it been run: the floating-point pro-rata tie-break (D1), the missing display replenishment (D2), and
-a decision rule that checked seed count but never seed identity (D5), a pre-run gate that never looked at what was installed (D11), and an authorisation status that no code read (D12).
+a decision rule that checked seed count but never seed identity (D5), a pre-run gate that never looked at what was installed (D11), an authorisation status that no code read (D12), a CLI override (D15) and a missing authorisation transition (D16), and, found by audit after those were reported closed, a frozen seed set read from whichever contract was passed (D19) and a receipt gate that proved a commit was reachable without proving the executing bytes were that commit (D20-D22).

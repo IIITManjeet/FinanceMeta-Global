@@ -1,9 +1,9 @@
 {
-  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7",
-  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v6",
+  "contract_id": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v8",
+  "supersedes": "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7",
   "status": "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED",
   "frozen_date": "2026-09-19",
-  "amended_date": "2026-09-21",
+  "amended_date": "2026-09-23",
   "authority": {
     "evidence_gate_issue": "build-the-future-11/FinanceMeta-Global#51",
     "parent_issue": "build-the-future-11/FinanceMeta-Global#47",
@@ -11,17 +11,19 @@
     "repository_url": "https://github.com/build-the-future-11/FinanceMeta-Global",
     "freeze_branch": "IIITManjeet/FinanceMeta-Global:research/microstructure-mechanism-freeze",
     "pull_request": "build-the-future-11/FinanceMeta-Global#57",
-    "freeze_tag": "microstructure-freeze-v7",
+    "freeze_tag": "microstructure-freeze-v8",
     "superseded_tags": [
       "microstructure-freeze-v1",
       "microstructure-freeze-v2",
       "microstructure-freeze-v3",
       "microstructure-freeze-v4",
       "microstructure-freeze-v5",
-      "microstructure-freeze-v6"
+      "microstructure-freeze-v6",
+      "microstructure-freeze-v7"
     ],
     "freeze_commit_sha": null,
-    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v7 (git rev-parse microstructure-freeze-v7^{commit}) together with the CI evidence artifact microstructure-mechanism-contract-<that sha>. Authorisation does not move this head: it is granted by a receipt naming the reviewed SHA, so the reviewed source and the executed source are the same bytes. Tags v1 to v6 identify superseded documents."
+    "freeze_identity_rule": "The frozen source is the PR #57 head at final pre-run review, identified by the annotated tag microstructure-freeze-v8 (git rev-parse microstructure-freeze-v8^{commit}). Authorisation does not move this head: it is granted by a receipt naming the reviewed tag and SHA, and the gate verifies every tracked file on disk against the blobs committed at that SHA, so the reviewed source and the executed source are the same bytes. CI publishes an evidence artifact named microstructure-mechanism-contract-<that sha>, which is corroboration for a reader; the gate does not read it and nothing in the run depends on it. Tags v1 to v7 identify superseded documents.",
+    "append_only_depends_on_tag_immutability": "The validator proves the amendment log is append-only by comparing it with the contract committed at microstructure-freeze-v7. That guarantee is only as strong as the immutability of that tag in the authoritative repository: in a clone one controls, force-moving v7 to the current head makes the check pass vacuously, because the previous document becomes the current one and any content extends itself. Nothing in this repository can prove an upstream tag has not been moved. The append-only property therefore rests on repository governance as well as on code, and is stated here rather than implied."
   },
   "freeze": {
     "results_inspected": true,
@@ -504,12 +506,558 @@
           "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
         },
         "superseded_commit": "0dbc79d"
+      },
+      {
+        "id": "A35",
+        "timestamp_utc": "2026-09-21T18:18:53Z",
+        "section": "/authorization/receipt_must_name and /authorization/reviewed_sha_rule",
+        "old_rule": "The receipt named the reviewed SHA only.",
+        "new_rule": "The receipt must name the reviewed tag as well, and the gate refuses unless that tag resolves to exactly the named SHA.",
+        "reason": "The review asked for a receipt naming the exact reviewed SHA/tag. Naming only the SHA met half of it, and carrying both lets the gate catch a receipt whose tag and SHA disagree.",
+        "reviewer_reference": "PR #57 pre-run technical review of v6, item P0-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell inspected; no frozen seed exercised."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A36",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "mechsim/contract.py frozen_seeds, mechsim/cli.py, mechsim/sim.py",
+        "old_rule": "The set of seeds a diagnostic path refused was read from whichever contract file the caller passed.",
+        "new_rule": "The refused set is the union of the passed contract's and the canonical in-repo contract's development and confirmation seeds, in the CLI and in run_once alike. If the canonical contract cannot be read or parsed the guard refuses rather than protecting less.",
+        "reason": "--contract is an arbitrary path. A copy with empty seed lists executed development seed 0 through mechsim run and printed the outcome, so P0-1 was not closed as v7 reported.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A37",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "mechsim/sim.py run_once allow_frozen_seed",
+        "old_rule": "allow_frozen_seed=True was sufficient for run_once to execute a frozen seed. A static scan of src/ was the only thing keeping the keyword out of tests, and a widened scan would have needed an exemption for the one legitimate test.",
+        "new_rule": "allow_frozen_seed=True is necessary but not sufficient. run_once honours it only for a contract id that _require_authorisation has added to sim.AUTHORISED_CONTRACTS in the same process after validating a receipt. No scanner exemption exists.",
+        "reason": "A future test passing the flag would have executed a live confirmation seed on every CI run, the shape already recorded as D9.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A38",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/authorization/reviewed_sha_rule, reviewed SHA",
+        "old_rule": "The reviewed SHA had to be HEAD or an ancestor of HEAD.",
+        "new_rule": "The reviewed SHA must be HEAD exactly. The ancestor allowance and the merge-base check are gone.",
+        "reason": "The allowance admitted any number of unreviewed commits between the reviewed commit and the executing one, touching anything. A commit after review forces a fresh review; that was always the intent.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A39",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/authorization/reviewed_sha_rule, working tree",
+        "old_rule": "The gate never looked at the working tree.",
+        "new_rule": "git status --porcelain must be empty apart from the receipt itself; the gate refuses otherwise, naming the dirty paths.",
+        "reason": "Uncommitted edits to analysis.py, the decision rule, passed with reviewed_sha equal to HEAD.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A40",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/authorization/reviewed_sha_rule, contract identity",
+        "old_rule": "Nothing pinned the content of the contract in use. The environment lock was verified by digest; the contract was not.",
+        "new_rule": "The contract in use must sit at evaluation/microstructure-mechanism-2026-09/experiment_contract.json inside the worktree, must be byte-identical to the blob committed at the reviewed SHA, and the executing mechsim package must lie inside that same worktree. The contract is pinned to LF in .gitattributes so a checkout cannot rewrite its bytes.",
+        "reason": "A copy with UNSTABLE.alpha set to 0.9999 and matched_baseline_ms to 999999, contract_id unchanged, was accepted with a self-written receipt and loaded. With a clean tree and reviewed_sha equal to HEAD this makes reviewed bytes and executed bytes genuinely identical, which is what P0-2 asked for and what v7 reported without delivering.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A41",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/authorization/reviewed_sha_rule, reviewed tag",
+        "old_rule": "The tag named in the receipt was resolved with git rev-parse <tag>^{commit}, which accepts HEAD, a branch name, refs/heads/<branch> or an abbreviated SHA, and it was not compared with authority.freeze_tag.",
+        "new_rule": "The tag must equal authority.freeze_tag and is resolved through refs/tags/<tag>^{commit} only.",
+        "reason": "A receipt naming reviewed_tag HEAD satisfied the cross-check vacuously, so it added nothing over the SHA check.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A42",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/metrics/decision_metric/interval_alpha",
+        "old_rule": "The confidence level of the BCa interval behind the NULL rule existed only as the prose '95 percent'; bca_interval carried alpha=0.05 as a keyword default and decide() never passed it.",
+        "new_rule": "interval_alpha is an explicit numeric field of 0.05, pinned by the validator and checked against the prose, loaded into Config with no default, and passed to every bootstrap call.",
+        "reason": "The same defect class as D18, which was reported closed for the UNSTABLE alpha while the primary decision's confidence level was left in source.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A43",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/mechanisms/B/min_allocation_lots binding",
+        "old_rule": "The contract carried min_allocation_lots and the validator pinned it, but allocate() read a module literal MIN_ALLOCATION_LOTS = 1 and never saw the contract.",
+        "new_rule": "min_allocation_lots is loaded into Config, carried by the book and passed to allocate() on every call. The module literal is gone and a drift test binds code to contract.",
+        "reason": "Two copies of a frozen parameter with nothing tying them together can diverge silently.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A44",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/robustness_cell/order_size_distribution_lots",
+        "old_rule": "The robustness cell's constant size distribution was a code literal in reproduce.py, matched to the contract's prose only.",
+        "new_rule": "order_size_distribution_lots is an explicit field, {\"1\": 1.0}, pinned by the validator, loaded into Config and used by build_matrix. The run matrix is unchanged: the same 540 cells with the same distribution.",
+        "reason": "Frozen parameters belong in the contract, not in source.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A45",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/freeze/amendments append-only check",
+        "old_rule": "The validator required only that amendment ids be contiguous from A1, so deleting an entry and renumbering the rest passed.",
+        "new_rule": "The validator reads the contract at the previous freeze tag from git and requires the current amendments array to extend it as an exact prefix: no entry changed, reordered or dropped. Defect entries must likewise extend the previous list by id and description; only a fix or verification may be corrected, as D2's was. It fails closed if the previous tag cannot be resolved, and the contract workflow fetches full history so CI can resolve it.",
+        "reason": "The append-only property existed in git history, not in the validator.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A46",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/authorization/predicate_kind",
+        "old_rule": "The authorisation predicate was pinned by substrings of its prose description.",
+        "new_rule": "predicate_kind is a machine-readable field pinned to exact_boolean_true; the prose is description only.",
+        "reason": "A sentence containing both pinned substrings while describing prefix acceptance passed the validator.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A47",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/authority/superseded_tags",
+        "old_rule": "The superseded tag list was required to contain the earlier tags and could also contain the current one.",
+        "new_rule": "The list must be exactly the earlier freeze tags and may not include authority.freeze_tag.",
+        "reason": "A tag names exactly one document; the current tag cannot also be superseded.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A48",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "PROTOCOL.md and brief.md amended date",
+        "old_rule": "The documents' amended date was free text and had fallen behind the contract's amended_date.",
+        "new_rule": "The validator requires the amended date stated in PROTOCOL.md and brief.md to equal the contract's amended_date.",
+        "reason": "The drift had already happened once.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A49",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/reproduction/environment_lock/verified_before_run",
+        "old_rule": "The text said reproduce refuses unless confirmatory_status is AUTHORIZED.",
+        "new_rule": "The text describes the receipt gate. confirmatory_status is frozen at NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW and is read by no code.",
+        "reason": "The sentence described the pre-D16 design, which no longer exists.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A50",
+        "timestamp_utc": "2026-09-21T19:11:54Z",
+        "section": "/freeze/exposure/scope/channels",
+        "old_rule": "Three exposure channels were recorded.",
+        "new_rule": "A fourth channel is recorded: during adversarial audit of the unpublished v8 draft the authorisation gate was stubbed in a throwaway clone and the confirmatory pipeline started on confirmation seeds before being killed, with nothing written, printed or observed.",
+        "reason": "The exposure record is written by rule. Its informational content is nil, and it is the incident that motivated D26.",
+        "reviewer_reference": "three independent adversarial audits of the unpublished v8 draft, 2026-09-21, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs; the audit incident recorded as exposure channel 4 produced and printed nothing."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A51",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/authorization/reviewed_sha_rule",
+        "old_rule": "The gate compared the contract file with the reviewed blob, and trusted every other file to a clean git status.",
+        "new_rule": "The gate enumerates the reviewed tree and compares the bytes of every tracked file on disk with the blob committed at the reviewed SHA. git status is used only to detect untracked additions.",
+        "reason": "git status trusts the index, so update-index --skip-worktree or --assume-unchanged hid a modified decision rule, and hid a hollowed-out gate that granted any contract id on a refusing receipt. Hashing the files directly is index-independent.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A52",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/seed_policy",
+        "old_rule": "The protected seed set was the union of the passed contract and the canonical contract on disk.",
+        "new_rule": "The protected seed set is the union of three: the passed contract, the canonical contract on disk, and the canonical contract as committed at HEAD when git resolves.",
+        "reason": "Nothing outside the receipt gate checked the canonical file, so an in-place edit emptied the set and the guard admitted development seed 0 through the CLI. A union degrades safely in both directions and over-protecting a seed costs nothing.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A53",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/metrics and /negative_result_criteria",
+        "old_rule": "Frozen statistical parameters were verified by checking that Config loaded them from the contract.",
+        "new_rule": "Frozen statistical parameters are verified at the point of use: a test varies the value and asserts the reported field or verdict changes, so a literal substituted in source fails.",
+        "reason": "Checking the contract-to-Config end proves the value was read, not that the code uses it. Two parameters passed that check while a literal at the point of use would have gone unnoticed.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A54",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/authorization/grant_scope",
+        "old_rule": "A validated receipt granted the frozen-seed permission to a contract id.",
+        "new_rule": "The grant is keyed on the contract id together with the sha256 of the contract bytes, so a configuration sharing the id but loaded from other bytes does not satisfy it.",
+        "reason": "The contract id is free text inside the file it identifies, so membership by id alone was a weaker check than the wording implied.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A55",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/authority/freeze_identity_rule",
+        "old_rule": "The rule stated the frozen source was identified by the tag together with the CI evidence artifact.",
+        "new_rule": "The rule states what the gate enforces, and records that the CI artifact is corroboration for a reader which the gate does not read.",
+        "reason": "Describing a control the code does not implement is the same class of error as publishing a figure that cannot be regenerated.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A56",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/authorization/reviewer_identity",
+        "old_rule": "The receipt named a reviewer and nothing said what that name proved.",
+        "new_rule": "The contract states that the reviewer field is unverified free text with no signature or identity check.",
+        "reason": "An unstated limitation reads as a control. It is better to say the provenance is paperwork than to leave a reader to assume otherwise.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A57",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "/authority/append_only_depends_on_tag_immutability",
+        "old_rule": "The append-only guarantee was presented as enforced by the validator.",
+        "new_rule": "The contract records that the guarantee rests on the immutability of the v7 tag upstream, which no check in this repository can prove.",
+        "reason": "Force-moving the previous freeze tag makes the comparison pass vacuously. The boundary between what code proves and what governance proves belongs in the document.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A58",
+        "timestamp_utc": "2026-09-22T16:28:23Z",
+        "section": "scripts/validate_microstructure_contract.py",
+        "old_rule": "The validator read PROTOCOL.md and brief.md, and never opened FINDINGS.md.",
+        "new_rule": "The validator requires FINDINGS.md to account for every defect the contract carries, so narrative drift fails CI.",
+        "reason": "Two gaps went unnoticed because nothing checked the findings narrative against the contract: the amendment summary skipped A25 to A35 and two defects had no entry.",
+        "reviewer_reference": "second round of three independent adversarial audits of the unpublished v8 draft, 2026-09-22, re-examining PR #57 pre-run technical review items P0-1, P0-2 and P1-2",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A59",
+        "timestamp_utc": "2026-09-22T16:52:10Z",
+        "section": "/reporting/required_run_fields",
+        "old_rule": "The per-run fields were listed in the builder brief as prose and pinned by nothing.",
+        "new_rule": "The contract carries the required run fields as a machine-readable list, and the validator checks the run record against it.",
+        "reason": "A field required from the freeze was never produced, and nothing noticed because the requirement lived only in a sentence. A list a machine reads cannot drift from the code the way a sentence can.",
+        "reviewer_reference": "builder brief section 4, data contract, checked against the delivered run record",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Checked on a sentinel seed. No frozen cell has been inspected and no frozen seed exercised."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A60",
+        "timestamp_utc": "2026-09-22T17:10:44Z",
+        "section": "/reporting/artifacts",
+        "old_rule": "The required comparison table and latency sensitivity plot were named in the reporting requirements and produced by no code.",
+        "new_rule": "The run writes comparison.md and latency_sensitivity.svg beside the JSON, and the contract lists the artifacts a run emits.",
+        "reason": "Anything assembled by hand after a run is a figure no committed code generates, which is the defect already recorded as D13. The plot is written as SVG from this repository rather than through a plotting library, so the hashed wheel lock does not move for a chart.",
+        "reviewer_reference": "builder brief section 4 and /reporting/required, checked against what the run emits",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Built and tested on synthetic summaries. No frozen cell inspected, no frozen seed exercised."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A61",
+        "timestamp_utc": "2026-09-22T17:10:44Z",
+        "section": "/metrics/decision_metric/id",
+        "old_rule": "The decision metric was named by a literal inside decide().",
+        "new_rule": "The decision metric id is loaded from the contract into Config and read from there by the decision rule and by the latency plot.",
+        "reason": "Which metric decides the experiment is the most consequential frozen choice in the contract, and it was the one still written into source.",
+        "reviewer_reference": "builder brief section 4 and /reporting/required, checked against what the run emits",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "Built and tested on synthetic summaries. No frozen cell inspected, no frozen seed exercised."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A62",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "/authorization/reviewed_sha_rule",
+        "old_rule": "The gate verified every tracked file and used git status to reject untracked additions.",
+        "new_rule": "The gate also requires the import path to hold reviewed files and nothing else.",
+        "reason": "Verifying source proves what the .py files say, not what the interpreter runs. A cached .pyc whose header matches its source is preferred over that source, and __pycache__ is ignored, so git status reported nothing for it.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A63",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "/authorization/reviewed_sha_rule",
+        "old_rule": "The comparison hashed the raw bytes on disk.",
+        "new_rule": "The comparison asks git for the object id it would record for the file's current content.",
+        "reason": "The committed blobs are LF, so a checkout that converts line endings differed from every blob and the gate refused everything. Asking git is the same question on any platform, and it still reads the file rather than the index.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A64",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "/metrics/not_differenced_across_mechanisms",
+        "old_rule": "The prohibition on differencing the queue measure lived in a comparability note.",
+        "new_rule": "The metrics that may not be differenced across mechanisms are a machine-readable list, and the comparison table reports those side by side with no difference column.",
+        "reason": "The delivered table differenced a measure in lots against one that is a fraction, which the contract forbids in terms, inside an artifact written for the reviewer.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A65",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "mechsim/contract.py committed_canonical_seeds",
+        "old_rule": "The committed seed set was cached on first use.",
+        "new_rule": "Only a successful read is cached.",
+        "reason": "Caching a failed git call made one transient error disable a safety layer for the life of the process, and remember the failure as if it were an answer.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A66",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "/authorization/grant_scope",
+        "old_rule": "The grant was keyed on the contract id and the digest of the contract file.",
+        "new_rule": "The grant is keyed on the configuration those bytes produce, so a derived configuration does not inherit it.",
+        "reason": "Config is frozen, which stops assignment but not construction. dataclasses.replace copied both strings unchanged while altering the scale, the horizon or the seeds.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A67",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "/reporting",
+        "old_rule": "The required fields and artifacts were compared with a list in the validator.",
+        "new_rule": "They are also checked against what the code emits and writes.",
+        "reason": "Comparing one list with another cannot notice that the code stopped producing the thing, which is exactly how the record digest went missing from the freeze onwards.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A68",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "scripts/validate_microstructure_contract.py",
+        "old_rule": "Any range in the narrative counted as covering the amendments inside it.",
+        "new_rule": "A range wide enough to swallow the log does not count as a summary.",
+        "reason": "One line reading A1 to the latest id satisfied the check for every amendment at once, which is the vacuous check the narrative drift came from.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A69",
+        "timestamp_utc": "2026-09-22T19:05:00Z",
+        "section": "/metrics/decision_metric/id",
+        "old_rule": "The decision metric id was read from the contract and used unchecked.",
+        "new_rule": "It is validated against the primary metric ids when the contract is loaded.",
+        "reason": "A typo surfaced as a key error inside the decision rule, after the whole matrix had run.",
+        "reviewer_reference": "third round of three independent adversarial audits, 2026-09-22, against the rebuilt v8 draft and the newly delivered reporting artifacts",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A70",
+        "timestamp_utc": "2026-09-23T06:40:00Z",
+        "section": "/authorization/reviewed_sha_rule",
+        "old_rule": "The gate required the executing package to be somewhere inside the reviewed worktree.",
+        "new_rule": "It must be the reviewed copy, at the path the reviewed tree puts it, and the scan covers the whole project directory rather than the source root alone.",
+        "reason": "Inside the worktree admitted a second copy under an ignored directory, or one reached through a .pth file or PYTHONPATH that no review covers, while the scan looked at one directory and left build, egg-info and the tests' caches unexamined.",
+        "reviewer_reference": "fourth round of three independent adversarial audits, 2026-09-23, against the rebuilt v8 draft",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A71",
+        "timestamp_utc": "2026-09-23T06:40:00Z",
+        "section": "/reporting/artifacts",
+        "old_rule": "The declared artifacts were written inline in the confirmatory run.",
+        "new_rule": "They are written by a function, so a test can call it and see what appears on disk.",
+        "reason": "The only check that a declared artifact is still produced was a search of the module for its name, which a comment satisfies.",
+        "reviewer_reference": "fourth round of three independent adversarial audits, 2026-09-23, against the rebuilt v8 draft",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A72",
+        "timestamp_utc": "2026-09-23T06:40:00Z",
+        "section": "/metrics/not_differenced_across_mechanisms",
+        "old_rule": "The prohibition was enforced in the comparison table.",
+        "new_rule": "The latency plot refuses a metric that may not be differenced as well.",
+        "reason": "The table was taught the rule and its neighbour in the same module was not.",
+        "reviewer_reference": "fourth round of three independent adversarial audits, 2026-09-23, against the rebuilt v8 draft",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
+      },
+      {
+        "id": "A73",
+        "timestamp_utc": "2026-09-23T06:40:00Z",
+        "section": "scripts/validate_microstructure_contract.py",
+        "old_rule": "The narrative's count of invalidating defects was prose no check read.",
+        "new_rule": "The validator cross-foots the stated count against the severity fields, in both documents.",
+        "reason": "The count and the severity fields are two statements of one fact, and they drifted apart the moment a defect was added without touching the sentence.",
+        "reviewer_reference": "fourth round of three independent adversarial audits, 2026-09-23, against the rebuilt v8 draft",
+        "outcomes_seen_before_change": {
+          "frozen_scale": false,
+          "note": "No frozen cell has been inspected. No frozen seed was exercised while making these repairs."
+        },
+        "superseded_commit": "1885f64"
       }
     ],
     "exposure": {
       "occurred": true,
       "declared_by": "reviewer, PR #57 pre-run blocker, 2026-09-20",
-      "what": "Two channels executed the frozen mechanisms on frozen development seeds before authorisation: the quick verification path, which also printed a verdict, and the automated test suite.",
+      "what": "Two channels executed the frozen mechanisms on frozen development seeds before authorisation: the quick verification path, which also printed a verdict, and the automated test suite. A third executed confirmation seed 100 once per CI run from a test. A fourth, during adversarial audit of the unpublished v8 draft, started the confirmatory pipeline itself on confirmation seeds in a throwaway clone with the authorisation gate stubbed out; it was killed within about twenty seconds and produced nothing that was written, printed or seen.",
       "scope": {
         "seeds_exposed": [
           0,
@@ -578,12 +1126,24 @@
             "comparison_performed": false,
             "note": "A test added in 1c9186b to prove the allow_frozen_seed bypass worked executed confirmation seed 100 once per CI run, and the static scanner was written to exempt exactly that call. Found by adversarial self-audit and declared here. Informational content is nil: one arm only, no pairing, no comparison, no decision rule, no verdict, and the reduced-scale intent stream is not a prefix of the frozen-scale stream because the generator batch size depends on the event count. The confirmation seed set is left unchanged, because altering a pre-registered seed set in response to this would itself be the kind of post-hoc change the freeze exists to prevent. If the reviewer prefers a fresh confirmation set, that is his call to make.",
             "evidence": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35513231020"
+          },
+          {
+            "channel": "authorisation gate stubbed during adversarial audit of the unpublished v8 draft, 2026-09-21, throwaway clone only",
+            "seeds": "unknown. Had the matrix been reached, its first jobs are the FIFO arm at the first latency point over the confirmation seeds in ascending order from 100, but whether any such job ran was not established.",
+            "seed_set": "confirmation",
+            "runs": "not recorded and not reconstructible. verify_controls runs first, at frozen scale on sentinel seeds, and consumed an unknown share of the roughly twenty seconds before the process was killed, so the number of confirmation-seed cells executed is unknown and may be zero. No estimate is offered because none can be regenerated.",
+            "arms": [
+              "FIFO"
+            ],
+            "scale": "frozen: 10000 warm-up + 100000 events per run",
+            "verdict_printed": false,
+            "comparison_performed": false,
+            "artifacts_written": [],
+            "note": "An auditor testing whether the gate could be bypassed replaced _require_authorisation with a no-op in a throwaway clone and invoked reproduce_main(). The process ran for roughly twenty seconds before being killed. How far it got is not established: the auditor reported seeing no progress line, but pytest captures stdout, so that is not evidence either way, and the work before the matrix is itself long-running. What is established is that run records are held in memory until the whole matrix completes, so no runs.jsonl, decision.json, summary.json or controls.json was written; that no metric value or verdict was printed or observed by anyone; and that the real repository was untouched. Informational content is nil on any reading: a single arm at most, no pairing, no comparison, no decision rule, nothing retained. It is declared because the exposure record is written by rule and not by a judgement about whether an item is embarrassing, and it is stated as unknown where it is unknown because a disclosed figure that cannot be regenerated is the defect already logged as D13. It is also the reason D26 exists: the test guarding the gate asserted only that it raised, so a gate that silently returned started the real run."
           }
         ],
-        "runs_executed_note": "runs_executed=108 counts the quick-path channel only. The test-suite channel is counted separately under channels[1] as call sites times CI runs.",
-        "confirmation_seeds_touched": [
-          100
-        ]
+        "runs_executed_note": "runs_executed=108 counts the quick-path channel only. The test-suite channel is counted separately under channels[1] as call sites times CI runs. channels[2] is one run. channels[3] is an unrecorded number of single-arm cells at frozen scale, none retained.",
+        "confirmation_seeds_touched": "100 once by channels[2]; consecutive confirmation seeds from 100 upward, single arm, count unrecorded, by channels[3]"
       },
       "evidence": {
         "workflow_run": "https://github.com/IIITManjeet/FinanceMeta-Global/actions/runs/35474722869",
@@ -591,7 +1151,7 @@
         "preserved": true,
         "note": "The run, its log and its artifact are retained. No history has been rewritten."
       },
-      "tuning_in_response": "none. No mechanism, metric, threshold, label, latency point, seed policy parameter or participant assumption was altered in response to the exposed verdict. The only changes are the ones required by the recovery instruction.",
+      "tuning_in_response": "none. No mechanism, metric, threshold, label, latency point, seed policy parameter or participant assumption was altered in response to any exposed verdict or to the audit incident. The only changes are the ones required by the recovery instruction and the defect corrections logged here. The confirmation seed set is left unchanged for the reason given at channels[2]; whether channels[3] warrants a fresh set is the reviewer's call.",
       "must_be_reported_in_findings": true
     },
     "implementation_defects_corrected": [
@@ -744,7 +1304,295 @@
         "severity": "minor",
         "defect": "The UNSTABLE significance level was a literal 0.05 in load_config rather than a field in the contract, violating the stated boundary that the contract is the only source for frozen parameters. The prose also said 0.05, so the statistic was unaffected, but nothing bound them together.",
         "fix": "negative_result_criteria.UNSTABLE.alpha is an explicit numeric field, pinned by the validator, loaded into Config with no default, and covered by a drift test.",
-        "verified": "Config reports 0.05 loaded from the contract; a drift test rejects a changed alpha."
+        "verified": "Config reports 0.05 loaded from the contract, and a drift test rejects a changed alpha. That verified the contract-to-Config end only. Nothing checked that decide() reads the loaded value, so replacing it with a literal at the point of use passed the whole suite; D34 records that gap and closes it with a behavioural test."
+      },
+      {
+        "id": "D19",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "invalidating",
+        "defect": "The frozen seed set was read from whatever contract the caller passed. cli.py and run_once both computed it from load_config(args.contract), and --contract is an unvalidated path, so mechsim run --contract <copy with empty seed lists> --seed 0 executed development seed 0 and printed the outcome. The runtime guard inherited the weakness even though it existed because static scanning had been judged too weak. v7 reported P0-1 closed; it was not.",
+        "fix": "contract.frozen_seeds returns the union of the passed contract's and the canonical in-repo contract's frozen sets and raises if the canonical contract cannot be read. The CLI, run_once, the controls and the smoke path all use it.",
+        "verified": "A contract copy with empty seed lists is refused for seed 0 and seed 100 through both the CLI and run_once; a missing canonical contract makes the guard refuse rather than pass."
+      },
+      {
+        "id": "D20",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "invalidating",
+        "defect": "The authorisation gate never checked the working tree, so uncommitted edits to analysis.py, the decision rule, passed with reviewed_sha equal to HEAD.",
+        "fix": "git status --porcelain must be empty apart from the receipt; the gate refuses otherwise and names the dirty paths.",
+        "verified": "In a throwaway repository a modified tracked file and an untracked file each cause refusal naming the path; the receipt alone does not."
+      },
+      {
+        "id": "D21",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "invalidating",
+        "defect": "The gate accepted any reviewed SHA that was an ancestor of HEAD, admitting an unbounded number of unreviewed commits after the reviewed one.",
+        "fix": "The reviewed SHA must equal HEAD exactly; the merge-base logic is removed.",
+        "verified": "A receipt naming the parent of HEAD is refused with a message saying a later commit needs a fresh review."
+      },
+      {
+        "id": "D22",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "invalidating",
+        "defect": "Nothing pinned the content of the contract in use. A copy with UNSTABLE.alpha 0.9999 and matched_baseline_ms 999999, contract_id unchanged, together with a self-written receipt, was accepted and loaded. The environment lock was verified by digest; the contract was not. v7 reported P0-2 closed on the strength of a reachable SHA; the bytes about to execute were never compared with it.",
+        "fix": "The contract must sit at its canonical repository path inside the worktree and be byte-identical to git show <reviewed_sha>:<that path>; the executing mechsim package must lie inside the same worktree. The contract is pinned to LF in .gitattributes so the comparison is not defeated by a line-ending rewrite.",
+        "verified": "A contract at a non-canonical path is refused; a contract at the canonical path whose bytes differ from the committed blob is refused; a package imported from outside the worktree is refused; the unmodified committed contract at HEAD with a matching receipt is accepted."
+      },
+      {
+        "id": "D23",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "major",
+        "defect": "git rev-parse <tag>^{commit} did not require the ref to be a tag, so reviewed_tag HEAD, a branch name, refs/heads/<branch> or an abbreviated SHA satisfied the cross-check vacuously, and the tag was never compared with authority.freeze_tag.",
+        "fix": "The tag must equal authority.freeze_tag and is resolved through refs/tags/<tag>^{commit} only.",
+        "verified": "HEAD, a branch name and an abbreviated SHA are each refused as the reviewed tag; a tag other than the freeze tag is refused even when it resolves to HEAD."
+      },
+      {
+        "id": "D24",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "major",
+        "defect": "bca_interval carried alpha=0.05 as a keyword default and decide() never passed alpha, so the confidence level of the primary decision lived in source. The contract carried it only as prose. The same class as D18, which had been reported closed.",
+        "fix": "metrics.decision_metric.interval_alpha is an explicit numeric field, pinned by the validator and reconciled with the prose, loaded into Config with no default, and passed to every bootstrap call. bca_interval has no default for alpha.",
+        "verified": "The bootstrap refuses to run without alpha; Config reports 0.05 loaded from the contract; a drift test rejects a changed value; changing alpha changes the interval decide() reports."
+      },
+      {
+        "id": "D25",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "major",
+        "defect": "The validator checked only that amendment ids were contiguous, so deleting A17 and renumbering the remainder passed. The append-only property lived in git history, not in the validator.",
+        "fix": "The validator reads the contract at the previous freeze tag and requires the current amendments to extend it as an exact prefix, and the defect entries to extend the previous list by id and description; it fails closed if the tag cannot be resolved. The contract workflow now checks out full history so the tag is available in CI.",
+        "verified": "Deleting a middle amendment and renumbering is rejected; editing a past amendment's text is rejected; reordering either log is rejected; the current contract passes."
+      },
+      {
+        "id": "D26",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "major",
+        "defect": "The test guarding the confirmatory entry point asserted only that it raised SystemExit, so a gate that returned instead of raising would have started the real run. During the audit exactly that happened in a throwaway clone; see exposure channel 4.",
+        "fix": "A structural test parses main() and requires _require_authorisation to be the first call after argument parsing, configuration loading and the smoke branch, ahead of the runtime gate, output creation, the controls, the matrix and every run_once, with no try statement able to swallow it; a second test requires run_once to consult the seed guard before generating a stream. Neither test can start a run.",
+        "verified": "The structural test fails when the gate call is moved, removed or wrapped. It inspects the shape of main() only and cannot see a gate whose body has been hollowed out while the call site is intact; the behavioural receipt tests, which call the gate directly with good and bad receipts, are what provide that property."
+      },
+      {
+        "id": "D27",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "minor",
+        "defect": "MIN_ALLOCATION_LOTS = 1 was a module literal in mechanisms.py. The contract carried the field and the validator pinned it, but allocate() never received the configuration, so the two could diverge silently.",
+        "fix": "min_allocation_lots is carried on Config, passed through the book into allocate() on every call, and the literal is gone. The robustness cell's constant size distribution, also a code literal, is bound the same way as robustness_cell.order_size_distribution_lots.",
+        "verified": "allocate() refuses to run without the floor; a drift test shows a changed floor changes pro-rata allocation; build_matrix carries the contract's distribution and the matrix is unchanged at 540 cells."
+      },
+      {
+        "id": "D28",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "minor",
+        "defect": "The authorisation predicate was pinned by substrings of prose, so a sentence containing both pinned phrases while describing prefix acceptance passed.",
+        "fix": "authorization.predicate_kind is a machine-readable field pinned to exact_boolean_true; the prose is description only.",
+        "verified": "A changed predicate_kind is rejected; the prose alone no longer decides."
+      },
+      {
+        "id": "D29",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "minor",
+        "defect": "reproduction.environment_lock.verified_before_run still said reproduce refuses unless confirmatory_status is AUTHORIZED, the pre-D16 design; confirmatory_status is frozen and read by no code.",
+        "fix": "The text describes the receipt gate.",
+        "verified": "The validator pins the corrected wording."
+      },
+      {
+        "id": "D30",
+        "found_by": "independent adversarial audit of the unpublished v8 draft, 2026-09-21",
+        "severity": "latent",
+        "defect": "The scanner requiring allow_frozen_seed=True to appear in exactly one place looked at src/*.py only, so a test passing the flag would have executed a live confirmation seed on every CI run, the shape already recorded as D9.",
+        "fix": "Structural rather than by widening the scanner: allow_frozen_seed=True is honoured only for a contract id that _require_authorisation has added to sim.AUTHORISED_CONTRACTS in the same process. The flag is inert from a test and no scanner exemption is needed.",
+        "verified": "run_once with the flag and no validated receipt refuses a confirmation seed; the guard function accepts the flag only once the grant is present; a scan of src/ shows the grant is mutated in _require_authorisation alone."
+      },
+      {
+        "id": "D31",
+        "found_by": "builder, while closing D22",
+        "severity": "major",
+        "defect": "Even with a clean tree at the reviewed SHA, nothing tied the code executing to that worktree: a mechsim package installed non-editably elsewhere would pass the gate while running other bytes. Found while closing D22.",
+        "fix": "The gate refuses unless the executing package file lies inside the worktree that holds the contract.",
+        "verified": "A gate run from a package outside the worktree is refused naming both paths."
+      },
+      {
+        "id": "D32",
+        "found_by": "independent adversarial audit, second round, 2026-09-22",
+        "severity": "invalidating",
+        "defect": "The gate's byte-identity check covered the contract alone. Every other tracked file, including the decision rule in analysis.py, the allocation code in mechanisms.py and reproduce.py itself, was trusted to an empty git status, and git status trusts the index. With update-index --skip-worktree or --assume-unchanged, a modified decision rule passed; the same technique on reproduce.py let a hollowed-out gate accept a receipt reading approved false, contract id BOGUS and an all-zero reviewed SHA, returning success and granting the real contract id. The previous round reported that the gate proved the executed bytes were the reviewed bytes; it proved that of one JSON file.",
+        "fix": "The gate enumerates the reviewed tree with git ls-tree and compares the git blob hash of the bytes on disk with the recorded object id for every tracked path, which the index cannot influence. Missing files are caught by the same walk. git status is retained only for untracked additions, which the index cannot mask, and the receipt remains the one permitted addition.",
+        "verified": "A test marks a source file skip-worktree, edits it, confirms git status is empty, and shows the gate refuses and names the path. A second test checks the blob hash helper agrees with git hash-object."
+      },
+      {
+        "id": "D33",
+        "found_by": "independent adversarial audit, second round, 2026-09-22",
+        "severity": "major",
+        "defect": "The canonical contract was an unverified trust anchor. frozen_seeds read it from disk, and nothing outside the receipt gate checked it: the CLI run and verify paths, the smoke check and the churn diagnostic never consult git. Editing the canonical file in place, with no commit, emptied the protected set. This is D19 moved one hop, from the path a caller supplies to the fixed path nothing double-checks. The bypass was demonstrated at the guard function, which returned without raising for development seed 0; it was not carried through to execution, because that would have required running a frozen seed.",
+        "fix": "The protected set is the union of the passed contract, the canonical file on disk, and the canonical contract as committed at HEAD when git resolves. The committed copy contributes nothing when git is unavailable rather than blocking, while an unreadable canonical file on disk still fails closed.",
+        "verified": "A test empties the seed lists in an in-place copy of the canonical file and confirms every frozen seed is still protected; another confirms the committed component degrades rather than blocks without git."
+      },
+      {
+        "id": "D34",
+        "found_by": "independent adversarial audit, second round, 2026-09-22",
+        "severity": "major",
+        "defect": "Two decision-rule parameters were bound to the contract in source but pinned by nothing. Replacing attenuation_ratio_max and unstable_sign_test_alpha with literals left all 86 relevant tests passing. The fixture carried a ratio_max parameter that no test ever called with a non-default value. The binding had been verified from contract to Config and never from Config to use, which is why the class recorded as closed in D18 and D24 reappeared here.",
+        "fix": "Behavioural tests vary each value and assert the reported field or the verdict changes, so a literal at the point of use fails. The same is done for the latency grid, which nothing had checked against a hardcoded list of the same eight numbers. D18's verification text is corrected to say what it actually established.",
+        "verified": "Each test fails when the corresponding read is replaced by a literal, verified in a scratch copy."
+      },
+      {
+        "id": "D35",
+        "found_by": "independent adversarial audit, second round, 2026-09-22",
+        "severity": "minor",
+        "defect": "The frozen-seed grant was a set of contract id strings, and the guard checked membership only, so any configuration sharing the id satisfied it regardless of the bytes it was loaded from. Unreachable through the one-shot confirmatory flow, and the process scope was disclosed, but the check was bare string equality with no binding to the reviewed bytes.",
+        "fix": "Config carries the sha256 of the contract bytes and the grant is keyed on the id and that digest together.",
+        "verified": "A test grants one contract and shows a configuration with the same id loaded from other bytes is still refused."
+      },
+      {
+        "id": "D36",
+        "found_by": "independent adversarial audit, second round, 2026-09-22",
+        "severity": "minor",
+        "defect": "The written record had drifted from the contract in two places that no check covered. The amendment narrative in brief.md ran A1 to A24 and then jumped to A36, never summarising A25 to A35; FINDINGS.md gave every defect its own entry except D13 and D14, though its own summary said D1 to D14 came from self-audit. The cause was that the validator read PROTOCOL.md and brief.md and never opened FINDINGS.md at all.",
+        "fix": "The missing narrative is written, and the validator now requires FINDINGS.md to account for every defect the contract carries.",
+        "verified": "A test removes a defect id from a stubbed FINDINGS.md copy and confirms validation fails."
+      },
+      {
+        "id": "D37",
+        "found_by": "builder, checking the delivered record against the data contract",
+        "severity": "major",
+        "defect": "The data contract requires a record sha256 for every run alongside the intent-stream digest. It was never produced. The run record carried stream_sha256 and no digest of itself, so a reader had no way to tell an altered run record from an original, and the byte-identical replay control had nothing compact to compare. The requirement had been in the brief since the freeze and was pinned by nothing, so no check failed while it went undelivered.",
+        "fix": "to_record computes a sha256 over its own canonical serialisation and carries it as record_sha256. The required fields are now a machine-readable list in the contract, checked by the validator, so a field required by the data contract cannot go missing unnoticed again.",
+        "verified": "A test recomputes the digest from the record body and rejects a constant; a second alters one metric and shows the digest moves; a third shows replay reproduces it. The validator rejects a contract whose required-field list drops a field the record carries."
+      },
+      {
+        "id": "D38",
+        "found_by": "builder, checking delivery against the reporting requirements",
+        "severity": "major",
+        "defect": "Two required reported artifacts were produced by nothing. The contract requires a mechanism comparison table and a latency sensitivity plot, and the run wrote only JSON, so both would have been assembled by hand after the run and sent to the reviewer as figures no committed code generates. That is the same failure as the withdrawn churn figure recorded in D13.",
+        "fix": "A reporting module builds both from the run summary, and the run writes comparison.md and latency_sensitivity.svg beside the JSON. The table carries the median with the 5th and 95th percentiles for every metric and arm, the difference between arms, and the retained degenerate run counts, because means alone are prohibited and no run may be dropped. The plot is SVG generated here, so no plotting dependency enters the hashed wheel lock.",
+        "verified": "Tests build both artifacts from synthetic summaries: the table reports both arms with their spread, the difference, and the retained counts, and marks a missing arm rather than inventing one; the plot parses as SVG, carries one point per latency, and puts the series on zero when the arms agree, which shows it plots the difference rather than one arm."
+      },
+      {
+        "id": "D39",
+        "found_by": "builder, while closing D38",
+        "severity": "major",
+        "defect": "The decision metric was a literal inside decide(). Which metric decides the experiment is the most consequential frozen choice the contract makes, and it was the one parameter still written into source, the same class as D18, D24 and D34.",
+        "fix": "Config carries decision_metric_id from the contract, and the decision rule and the latency plot both read it.",
+        "verified": "A test asserts the literal is gone from decide() and that the contract's value is what Config reports."
+      },
+      {
+        "id": "D40",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "invalidating",
+        "defect": "Verifying every tracked file proved what the source says, not what the interpreter runs. Python prefers a cached .pyc whose header matches its source, and __pycache__ is untracked and ignored, so the gate's own git status call reported nothing for it and its filter read only untracked entries in any case. An audit showed bytecode planted there executing in place of source that still hashed correctly. Caches for exactly these modules were present in the working repository.",
+        "fix": "The gate requires the import path to contain reviewed files and nothing else, and refuses naming what it found. The reproduction command disables bytecode caching.",
+        "verified": "A test plants a .pyc in an ignored cache, confirms git status reports nothing and no tracked file has drifted, and shows the gate refuses; a second covers a stray module on the import path."
+      },
+      {
+        "id": "D41",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "invalidating",
+        "defect": "The tree comparison hashed the raw bytes on disk, so on a checkout that converts line endings every tracked file differed from its blob and the gate refused to run at all. It was not noticed because the state was checked with git status, which normalises, rather than with the walk itself.",
+        "fix": "The comparison asks git for the object id it would record for the file's current content, which matches git's own view on any platform and still reads the file rather than the index.",
+        "verified": "A test asserts the walk agrees with git hash-object across several files, and that a real content change is still reported as drift."
+      },
+      {
+        "id": "D42",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "major",
+        "defect": "The delivered comparison table differenced the queue measure across mechanisms. The arms measure it in different units, lots against a fraction, and the contract states in terms that it is never differenced. The table would have carried a meaningless number into a reviewed artifact. No test covered it because the fixture used only the two metrics where differencing is valid.",
+        "fix": "The metrics that may not be differenced are a machine-readable list in the contract; the table reports those side by side, with a note, and no difference column.",
+        "verified": "A test builds the table for the queue measure and asserts no difference column appears, and that the descriptive-only note does."
+      },
+      {
+        "id": "D43",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "major",
+        "defect": "The committed canonical seed set was cached on first use, including when the read failed. One transient git error at process start silently disabled that layer for the life of the process.",
+        "fix": "Only a successful read is cached.",
+        "verified": "A test fails the first read, restores git, and asserts the second call returns the real set."
+      },
+      {
+        "id": "D44",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "major",
+        "defect": "The frozen-seed grant was keyed on the contract id and the file digest, both of which dataclasses.replace copies unchanged. A derived configuration with an arbitrary scale, horizon or seed set inherited the authorisation. replace is used three times in this package, so this is ordinary code rather than a contrivance.",
+        "fix": "The grant is keyed on a digest of the configuration itself.",
+        "verified": "A test grants the real configuration, then shows three derived ones are refused while carrying the same id and file digest."
+      },
+      {
+        "id": "D45",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "major",
+        "defect": "The required run fields and emitted artifacts were checked only against a list inside the validator. Nothing compared either with what the code produces, so a field could stop being emitted with no test or validator signal. That is how the record digest went undelivered from the freeze onwards, and the fix for it left the same direction unchecked.",
+        "fix": "Tests compare the contract's lists with a real run record and with the artifacts the run writes.",
+        "verified": "Removing a required field from the record fails the first test; removing an artifact write fails the second."
+      },
+      {
+        "id": "D46",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "major",
+        "defect": "The amendment coverage check treated any range as covering the amendments inside it, so a single line naming the whole span satisfied it for every amendment at once. The check introduced to close narrative drift could itself be satisfied vacuously.",
+        "fix": "A range wide enough to swallow the log does not count as a summary.",
+        "verified": "A test asserts a blanket range fails while a genuine grouping passes."
+      },
+      {
+        "id": "D47",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "major",
+        "defect": "The test covering the tree walk did not test half of what it named. It tried to corrupt two files by replacing a substring that appears in one of them and not the other, so the second edit was a silent no-op, and the test passed on Windows only because writing the text back rewrote the line endings. On a checkout that does not, the assertion would have failed, and the assume-unchanged bypass had no coverage at all.",
+        "fix": "The test appends bytes, which changes every file and is independent of newline translation, and asserts the edit landed before relying on it.",
+        "verified": "The test fails if either update-index bypass stops being caught."
+      },
+      {
+        "id": "D48",
+        "found_by": "independent adversarial audit, third round, 2026-09-22",
+        "severity": "minor",
+        "defect": "The test binding the decision metric to the contract searched the source text of the decision rule. Splitting the literal in two and adding a dead reference to the contract field passed it.",
+        "fix": "A behavioural test varies the named metric and asserts the reported statistic and metric follow it.",
+        "verified": "Reverting the decision rule to a hardcoded metric, however spelled, changes neither statistic and fails the test."
+      },
+      {
+        "id": "D49",
+        "found_by": "independent adversarial audit, fourth round, 2026-09-23",
+        "severity": "major",
+        "defect": "The check on the executing package proved only that it sat somewhere inside the reviewed worktree. A complete second copy at microstructure-sim/build/lib/mechsim satisfied that, and the scan for unreviewed importable files covered the source root alone, leaving build, egg-info and the tests' caches unexamined by both it and git. The editable install puts a .pth file outside the repository holding the path that is actually imported, and nothing reviewed or hashed it, so repointing it substituted the whole package including this gate.",
+        "fix": "The executing package must be the reviewed copy at its canonical path, and the scan covers the whole project directory.",
+        "verified": "A test refuses the real repository's package against a throwaway contract, and refuses a second copy planted inside the worktree under an ignored directory while git reports the tree clean."
+      },
+      {
+        "id": "D50",
+        "found_by": "independent adversarial audit, fourth round, 2026-09-23",
+        "severity": "major",
+        "defect": "The test that was supposed to check the declared artifacts against what the code produces searched the module for each filename as a quoted string. Deleting the write and leaving the name in a comment passed it, which an audit demonstrated. The fix recorded in D45 closed this direction for the run record and left it open for the artifacts, and the defect's own verification text said otherwise.",
+        "fix": "The artifacts are written by a function the test calls, and the test reads the directory afterwards.",
+        "verified": "Removing a write leaves the file absent and fails the test, which now inspects the filesystem rather than the source."
+      },
+      {
+        "id": "D51",
+        "found_by": "independent adversarial audit, fourth round, 2026-09-23",
+        "severity": "major",
+        "defect": "The narrative said eleven defects would have invalidated the comparison while the contract's severity fields marked fourteen. The sentence was edited in the same commit that added three more invalidating defects, and the edit silently failed to match, so the number stood wrong in both documents. Nothing read the count.",
+        "fix": "The count is corrected and the validator cross-foots the stated number against the severity fields in both documents, and requires every invalidating defect to be named in the findings.",
+        "verified": "A test drifts the prose and the severity fields in turn and confirms each direction is refused."
+      },
+      {
+        "id": "D52",
+        "found_by": "independent adversarial audit, fourth round, 2026-09-23",
+        "severity": "major",
+        "defect": "The latency plot accepted any metric. Handing it the queue measure produced a chart titled PRO_RATA minus FIFO of a quantity in lots against one that is a fraction, the comparison the contract forbids. Nothing reached it that way in the current pipeline, but the table had been taught the rule and its neighbour in the same module had not.",
+        "fix": "The plot refuses a metric the contract lists as not differenced across mechanisms.",
+        "verified": "A test asserts the refusal and that the permitted metric still plots."
+      },
+      {
+        "id": "D53",
+        "found_by": "independent adversarial audit, fourth round, 2026-09-23",
+        "severity": "minor",
+        "defect": "The cache added to stop a failed read being remembered was unreachable. The success path returned from inside the try block, so the store below it ran only in the failure branch where the result was always empty; nothing was ever cached in either direction. The test written for it asserted that a failed read was absent from the cache, which was true because the cache was always empty.",
+        "fix": "The cache is removed. Every call reads fresh, which is the behaviour the fix was reaching for.",
+        "verified": "A test asserts no cache attribute exists, that the read is not an lru_cache, and that a failing read between two successful ones changes neither."
+      },
+      {
+        "id": "D54",
+        "found_by": "independent adversarial audit, fourth round",
+        "severity": "minor",
+        "defect": "Negative zero printed as -0 in the comparison table and the plot's axis labels, because the guard against collapsing a small number to zero tested inequality with 0.0, which is false for -0.0. An exact zero read as a small negative, the mirror image of the defect the guard was added for.",
+        "fix": "Zero is formatted as zero whatever its sign.",
+        "verified": "A test covers -0.0, 0.0 and values below the precision threshold."
       }
     ]
   },
@@ -1068,6 +1916,8 @@
       "independent_arm_resampling_permitted": false,
       "seed_pairs_required_complete": true,
       "interval": "BCa bootstrap 95 percent confidence interval",
+      "interval_alpha": 0.05,
+      "interval_alpha_note": "Two-sided BCa bootstrap alpha; the 95 percent interval is 1 - alpha. Loaded from here into the bootstrap with no default in code.",
       "bootstrap_resamples": 10000
     },
     "distributional_summaries_required": [
@@ -1076,7 +1926,10 @@
       "p5",
       "p95"
     ],
-    "means_only_reporting_permitted": false
+    "means_only_reporting_permitted": false,
+    "not_differenced_across_mechanisms": [
+      "queue_measure"
+    ]
   },
   "controls": {
     "identity_run": {
@@ -1110,6 +1963,9 @@
     "count": 1,
     "id": "constant_order_size",
     "change": "order_size_distribution_lots replaced by a constant 1 lot for background intents",
+    "order_size_distribution_lots": {
+      "1": 1.0
+    },
     "assumption_removed": "background_order_size_heterogeneity",
     "tracked_display_lots_in_cell": 10,
     "purpose": "Sets background order size to a constant 1 lot. This removes background size heterogeneity, and also reduces mean background order size from 2.75 to 1.0 lots and lengthens per-order lifetime, so aggregate book depth co-varies. ASSUMPTION_DRIVEN therefore indicates sensitivity to that joint change rather than to size heterogeneity alone. The tracked display order stays at 10 lots, so pro-rata does not reduce to price-time priority in this cell.",
@@ -1173,7 +2029,7 @@
     "negative_result_is_a_valid_completion": true
   },
   "reproduction": {
-    "command": "python -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
+    "command": "python -B -m mechsim.reproduce --contract evaluation/microstructure-mechanism-2026-09/experiment_contract.json",
     "environment_lock": {
       "file": "microstructure-sim/requirements.lock.txt",
       "sha256": "3582ba3a36bb21ad902b8887d6d30ca79584d0693471dedebf7f57a1857f3e97",
@@ -1184,7 +2040,7 @@
       "line_endings": "lf, pinned by .gitattributes",
       "build_backend_pinned": true,
       "sdist_fallback_possible": false,
-      "verified_before_run": "reproduce refuses to start unless confirmatory_status is AUTHORIZED, the interpreter matches the frozen series, this file matches the recorded digest, and every installed distribution matches the pins",
+      "verified_before_run": "reproduce refuses to start unless an authorisation receipt approves this contract id at exactly the freeze tag and HEAD SHA with a clean working tree and a byte-identical contract, the interpreter matches the frozen series, this file matches the recorded digest, and every installed distribution matches the pins",
       "wheel_platforms": [
         "manylinux_x86_64",
         "manylinux_aarch64",
@@ -1218,6 +2074,40 @@
       "exchange deployability from simulation alone",
       "any claim that either mechanism is a superior market design",
       "cross-reference to unrelated prior auction or mechanism-design work by the builder"
+    ],
+    "required_run_fields": [
+      "mechanism",
+      "seed",
+      "latency_ms",
+      "cell",
+      "fill_probability",
+      "implementation_shortfall_bps",
+      "spread_at_execution_ticks",
+      "time_to_first_fill_ms",
+      "time_to_full_fill_ms",
+      "queue_measure",
+      "price_impact_bps",
+      "filled_lots",
+      "parent_lots",
+      "arrival_mid",
+      "final_mid",
+      "placements",
+      "limit_no_ops",
+      "cancel_no_ops",
+      "market_no_ops",
+      "flags",
+      "stream_sha256",
+      "record_sha256"
+    ],
+    "artifacts": [
+      "runs.jsonl",
+      "summary.json",
+      "decision.json",
+      "controls.json",
+      "comparison.md",
+      "latency_sensitivity.svg",
+      "environment.txt",
+      "authorization.json"
     ]
   },
   "claim_boundary": "Synthetic simulation only. Conclusions are valid solely for the two frozen mechanisms under this frozen order-flow process, participant assumptions, latency model and fee schedule. This is not evidence of real-market performance, realized returns, predictive alpha, profitability, market-quality superiority, or exchange deployability.",
@@ -1227,22 +2117,28 @@
     "receipt_file": "evaluation/microstructure-mechanism-2026-09/authorization.json",
     "receipt_absent_means": "not authorised",
     "predicate": "receipt.approved is exactly boolean true; no string prefix is accepted",
+    "predicate_kind": "exact_boolean_true",
     "receipt_must_name": [
       "approved",
       "contract_id",
       "reviewed_sha",
+      "reviewed_tag",
       "reviewer",
       "timestamp_utc"
     ],
-    "reviewed_sha_rule": "full 40-character SHA, and must be this revision or an ancestor of it",
+    "reviewed_sha_rule": "full 40-character SHA, and it must be HEAD exactly; an ancestor is not accepted, because a commit after review is not covered by the review. The receipt must also name the reviewed tag, which must equal authority.freeze_tag and resolve through refs/tags/ to exactly the named SHA. The gate further refuses unless the working tree is clean apart from the receipt, the contract in use sits at its canonical repository path and is byte-identical to the blob committed at that SHA, and the executing mechsim package lies inside that worktree. The import path must also contain reviewed files and nothing else, because verifying source does not prove which bytecode the interpreter runs.",
+    "contract_line_endings": "lf, pinned by .gitattributes, because the gate compares the contract on disk with the committed blob byte for byte",
+    "grant_scope": "a validated receipt adds the contract id to sim.AUTHORISED_CONTRACTS for the current process; run_once honours allow_frozen_seed=True only for a contract id in that set, so the flag alone executes nothing",
     "receipt_is_the_only_post_review_mutable_input": true,
     "contract_confirmatory_status_is_frozen": "confirmatory_status stays NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW permanently. Authorisation is granted by the receipt, so the reviewed contract and the executed contract are the same bytes and the validator never has to change to permit a run.",
     "run_records": [
       "receipt_sha256",
       "reviewed_sha",
+      "reviewed_tag",
       "head_sha",
       "reviewer",
       "granted_utc"
-    ]
+    ],
+    "reviewer_identity": "The receipt's reviewer field is free text. There is no signature, no key and no identity check: the gate records who the receipt claims the reviewer was, and proves nothing about it. Receipt provenance is a paperwork control, not a cryptographic one."
   }
 }

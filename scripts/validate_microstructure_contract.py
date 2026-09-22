@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import functools
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -14,27 +17,43 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "evaluation/microstructure-mechanism-2026-09/experiment_contract.json"
 PROTOCOL_DOC = ROOT / "evaluation/microstructure-mechanism-2026-09/PROTOCOL.md"
 
-CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v7"
+CONTRACT_ID = "FINANCEMETA-MICROSTRUCTURE-MECHANISM-2026-v8"
 FROZEN_DATE = "2026-09-19"
+AMENDED_DATE = "2026-09-23"
 EXPECTED_STATUS = "PARTIALLY_UNBLINDED_DEVELOPMENT_EXPOSED"
 EXPECTED_CONFIRMATORY_STATUS = "NOT_AUTHORIZED_PENDING_INDEPENDENT_PRE_RUN_REVIEW"
 EXPECTED_UNSTABLE_ALPHA = 0.05
+EXPECTED_INTERVAL_ALPHA = 0.05
+EXPECTED_PREDICATE_KIND = "exact_boolean_true"
 REQUIRED_AUTHORIZATION_KEYS = {
-    "mechanism", "receipt_file", "predicate", "receipt_must_name",
+    "mechanism", "receipt_file", "predicate", "predicate_kind", "receipt_must_name",
     "reviewed_sha_rule", "receipt_is_the_only_post_review_mutable_input", "run_records",
 }
 EXPECTED_CONFIRMATION_SEEDS = list(range(100, 130))
 EXPOSED_DEVELOPMENT_SEEDS = [0, 1, 2, 3, 4, 5, 7, 11]
-EXPECTED_FREEZE_TAG = "microstructure-freeze-v7"
+EXPECTED_FREEZE_TAG = "microstructure-freeze-v8"
+EXPECTED_SUPERSEDED_TAGS = [f"microstructure-freeze-v{i}" for i in range(1, 8)]
+PREVIOUS_FREEZE_TAG = EXPECTED_SUPERSEDED_TAGS[-1]
 EXPECTED_WARM_UP = 10000
 EXPECTED_HORIZON = 100000
 EXPECTED_PARENT_LOTS = 500
 EXPECTED_DISPLAY_LOTS = 10
 EXPECTED_BOOTSTRAP_SEED = 424242
-REQUIRED_DEFECT_IDS = {f"D{i}" for i in range(1, 19)}
+REQUIRED_DEFECT_IDS = {f"D{i}" for i in range(1, 55)}
+# The narrative must group amendments, not wave at them.
+MAX_SUMMARY_SPAN = 20
+REQUIRED_RUN_FIELDS = {
+    "mechanism", "seed", "latency_ms", "cell",
+    "fill_probability", "implementation_shortfall_bps", "spread_at_execution_ticks",
+    "time_to_first_fill_ms", "time_to_full_fill_ms", "queue_measure", "price_impact_bps",
+    "filled_lots", "parent_lots", "arrival_mid", "final_mid", "placements",
+    "limit_no_ops", "cancel_no_ops", "market_no_ops", "flags",
+    "stream_sha256", "record_sha256",
+}
 EXPECTED_FLOW_RATES = {"limit_order_rate_per_level_per_sec": 1.2, "market_order_rate_per_side_per_sec": 0.9,
                        "cancel_rate_per_resting_lot_per_sec": 0.14, "levels_from_opposite_best": 5}
 EXPECTED_SIZE_DISTRIBUTION = {"1": 0.5, "2": 0.25, "5": 0.15, "10": 0.1}
+EXPECTED_ROBUSTNESS_SIZE_DISTRIBUTION = {"1": 1.0}
 EXPECTED_REPOSITORY_URL = "https://github.com/build-the-future-11/FinanceMeta-Global"
 
 EXPECTED_MECHANISM_IDS = {"FIFO", "PRO_RATA"}
@@ -112,6 +131,27 @@ def require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+@functools.lru_cache(maxsize=None)
+def _previous_freeze(tag: str) -> dict:
+    """The contract as committed at the previous freeze tag.
+
+    The append-only property of the logs used to live in git history alone;
+    the validator only checked that ids were contiguous, so deleting an entry
+    and renumbering the rest passed. Comparing against the tagged blob makes
+    the property mechanical. If the tag cannot be read this fails, because a
+    clone without tags cannot vouch for the logs.
+    """
+    rel = CONTRACT.relative_to(ROOT).as_posix()
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(ROOT), "show", f"refs/tags/{tag}:{rel}"], capture_output=True, check=False
+        )
+    except OSError as exc:
+        raise AssertionError(f"cannot run git to read the contract at {tag}: {exc}")
+    require(done.returncode == 0, f"cannot read the contract at {tag}: the append-only check needs the previous freeze tag")
+    return json.loads(done.stdout.decode("utf-8"))
+
+
 def _validate_exposure(freeze: dict) -> None:
     """The recorded exposure is retained, not quietly reverted."""
     exposure = freeze["exposure"]
@@ -131,17 +171,24 @@ def _validate_exposure(freeze: dict) -> None:
     )
 
 
-def _validate_defects(freeze: dict) -> None:
+def _validate_defects(freeze: dict, previous: dict) -> None:
     """Implementation defects found pre-run are declared, not quietly fixed."""
     defects = freeze["implementation_defects_corrected"]
-    ids = {entry["id"] for entry in defects}
-    require(REQUIRED_DEFECT_IDS.issubset(ids), "a declared implementation defect was removed")
+    ids = [entry["id"] for entry in defects]
+    require(REQUIRED_DEFECT_IDS.issubset(set(ids)), "a declared implementation defect was removed")
     for entry in defects:
         for key in ("defect", "fix", "verified", "severity", "found_by"):
             require(str(entry.get(key, "")).strip() != "", f"defect {entry['id']} missing {key}")
+    # A defect's fix or verification may be corrected, as D2's was when a
+    # disclosed figure proved unreproducible, but what the defect was, and its
+    # place in the list, cannot change once tagged.
+    before = [(e["id"], e["defect"]) for e in previous["freeze"]["implementation_defects_corrected"]]
+    now = [(e["id"], e["defect"]) for e in defects]
+    require(now[: len(before)] == before,
+            f"defect log must extend the entries recorded at {PREVIOUS_FREEZE_TAG}: none may be dropped, renumbered or rewritten")
 
 
-def _validate_amendments(freeze: dict) -> None:
+def _validate_amendments(freeze: dict, previous: dict) -> None:
     amendments = freeze["amendments"]
     require(isinstance(amendments, list), "amendment log must be a list")
     require(len(amendments) >= 1, "amendment log cannot be emptied once the contract is amended")
@@ -163,6 +210,12 @@ def _validate_amendments(freeze: dict) -> None:
     require(
         ids == [f"A{i}" for i in range(1, len(ids) + 1)],
         "amendment log must stay append-only and contiguously numbered",
+    )
+    before = previous["freeze"]["amendments"]
+    require(
+        amendments[: len(before)] == before,
+        f"amendment log must extend the log recorded at {PREVIOUS_FREEZE_TAG} exactly: "
+        "no entry may be changed, reordered or dropped",
     )
 
 
@@ -202,6 +255,9 @@ def _validate_decision_metric(metrics: dict) -> None:
         "independent resampling of the two arms cannot be permitted",
     )
     require(decision["seed_pairs_required_complete"] is True, "seed pairs must remain complete")
+    require(decision["interval_alpha"] == EXPECTED_INTERVAL_ALPHA, "decision interval alpha drift")
+    level = round(100 * (1 - decision["interval_alpha"]))
+    require(f"{level} percent" in decision["interval"], "interval prose disagrees with interval_alpha")
 
 
 def _validate_authorization(data: dict) -> None:
@@ -213,10 +269,20 @@ def _validate_authorization(data: dict) -> None:
         auth["receipt_is_the_only_post_review_mutable_input"] is True,
         "the receipt must remain the only input that may change after review",
     )
-    require("exactly boolean true" in auth["predicate"], "authorisation predicate must be an exact boolean")
-    require("no string prefix" in auth["predicate"], "a prefix predicate would accept AUTHORIZED_REVOKED")
-    require("40-character SHA" in auth["reviewed_sha_rule"], "the receipt must name a full reviewed SHA")
-    for key in ("approved", "contract_id", "reviewed_sha"):
+    # The kind is what is pinned; the prose is a description and could be made
+    # to contain any phrase while describing the opposite.
+    require(auth["predicate_kind"] == EXPECTED_PREDICATE_KIND, "authorisation predicate must be an exact boolean")
+    require(str(auth["predicate"]).strip() != "", "authorisation predicate description missing")
+    rule = auth["reviewed_sha_rule"]
+    require("40-character SHA" in rule, "the receipt must name a full reviewed SHA")
+    require("HEAD exactly" in rule and "ancestor is not accepted" in rule,
+            "the reviewed SHA must be the executing revision, not an ancestor of it")
+    require("refs/tags/" in rule and "exactly the named SHA" in rule,
+            "the tag must resolve as a tag to the SHA in the receipt")
+    require("authority.freeze_tag" in rule, "the reviewed tag must be the freeze tag")
+    require("clean" in rule and "byte-identical" in rule,
+            "the gate must require a clean tree and a byte-identical contract")
+    for key in ("approved", "contract_id", "reviewed_sha", "reviewed_tag"):
         require(key in auth["receipt_must_name"], f"receipt must name {key}")
     require(
         data["confirmatory_status"] == EXPECTED_CONFIRMATORY_STATUS,
@@ -243,6 +309,33 @@ def _validate_negative_criteria(negative: dict) -> None:
         )
 
 
+COUNT_WORDS = {
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight",
+    9: "nine", 10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 14: "fourteen",
+    15: "fifteen", 16: "sixteen", 17: "seventeen", 18: "eighteen", 19: "nineteen", 20: "twenty",
+}
+
+
+def _covered_by_a_range(amendment_id: str, text: str) -> bool:
+    """Whether a narrative names this amendment, on its own or inside a range.
+
+    The summaries are written as ranges such as A25-A35, so an amendment is
+    covered when it is named outright or falls inside one of them.
+    """
+    number = int(amendment_id[1:])
+    if re.search(rf"\b{amendment_id}\b", text):
+        return True
+    for low, high in re.findall(r"\bA(\d+)\s*[-\u2013]\s*A?(\d+)\b", text):
+        # A range wide enough to swallow the whole log is not a summary. One
+        # line reading A1-A61 would otherwise satisfy this for every amendment
+        # at once, which is the vacuous check the findings drift came from.
+        if int(high) - int(low) >= MAX_SUMMARY_SPAN:
+            continue
+        if int(low) <= number <= int(high):
+            return True
+    return False
+
+
 def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(data.get("contract_id") == CONTRACT_ID, "contract ID drift")
     require(data.get("status") == EXPECTED_STATUS, "exposure status must not be downgraded")
@@ -251,12 +344,16 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
         "confirmatory run cannot be marked authorised here",
     )
     require(data.get("frozen_date") == FROZEN_DATE, "freeze date drift")
+    require(data.get("amended_date") == AMENDED_DATE, "amended date drift")
+    require(dt.date.fromisoformat(AMENDED_DATE) >= dt.date.fromisoformat(FROZEN_DATE), "amended before frozen")
 
     authority = data["authority"]
     require(authority["builder"] == "Manjeet Pathak", "builder attribution removed or altered")
     require(authority["repository_url"] == EXPECTED_REPOSITORY_URL, "authoritative repository drift")
     require(authority["freeze_tag"] == EXPECTED_FREEZE_TAG, "freeze tag drift")
-    require({"microstructure-freeze-v2", "microstructure-freeze-v3", "microstructure-freeze-v4", "microstructure-freeze-v5", "microstructure-freeze-v6"}.issubset(set(authority["superseded_tags"])), "superseded tag dropped")
+    require(authority["superseded_tags"] == EXPECTED_SUPERSEDED_TAGS, "superseded tag list drift")
+    require(authority["freeze_tag"] not in authority["superseded_tags"], "the current tag cannot supersede itself")
+    previous = _previous_freeze(PREVIOUS_FREEZE_TAG)
     require(authority["freeze_commit_sha"] is None, "a self-referential freeze SHA cannot be embedded")
     require("freeze_identity_rule" in authority, "freeze identity rule missing")
 
@@ -266,14 +363,14 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
         "results_inspected must stay true while the recorded exposure stands",
     )
     _validate_exposure(freeze)
-    _validate_defects(freeze)
+    _validate_defects(freeze, previous)
     require(freeze["simulator_implemented_at_freeze"] is False, "simulator must not exist at brief freeze")
     require(freeze["parameters_may_change_after_results"] is False, "post-result parameter change cannot be permitted")
     require(
         freeze["third_mechanism_may_be_added_after_results"] is False,
         "a third mechanism cannot be admitted after results",
     )
-    _validate_amendments(freeze)
+    _validate_amendments(freeze, previous)
 
     mechanisms = data["mechanisms"]
     require(mechanisms["count"] == 2, "exactly two mechanisms are permitted in the first pass")
@@ -384,6 +481,10 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
         robustness["tracked_display_lots_in_cell"] == data["participants"]["tracked_agent"]["display_lots"],
         "tracked display size must be unchanged in the robustness cell",
     )
+    require(
+        robustness["order_size_distribution_lots"] == EXPECTED_ROBUSTNESS_SIZE_DISTRIBUTION,
+        "robustness cell size distribution drift",
+    )
 
     matrix = data["run_matrix"]
     main = matrix["main"]
@@ -422,7 +523,9 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     require(lock["sdist_hashes_present"] is False, "an sdist hash would permit an unpinned source build")
     require(lock["installed_environment_verified_before_run"] is True,
             "the gate must check site-packages, not only the lock file")
-    require("AUTHORIZED" in lock["verified_before_run"], "the run must be gated on authorisation")
+    require("receipt" in lock["verified_before_run"], "the run must be gated on the authorisation receipt")
+    require("confirmatory_status" not in lock["verified_before_run"],
+            "confirmatory_status is read by no code and cannot be described as the gate")
     lock_path = ROOT / lock["file"]
     require(lock_path.is_file(), "environment lock file missing")
     actual = hashlib.sha256(lock_path.read_bytes()).hexdigest()
@@ -431,6 +534,18 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
         f"environment lock digest does not match the file: contract {lock['sha256']}, file {actual}",
     )
 
+    # The data contract listed the per-run fields in prose, and a required one
+    # went undelivered from the freeze because nothing compared the list with
+    # what the record carries.
+    declared = set(data["reporting"]["required_run_fields"])
+    require(REQUIRED_RUN_FIELDS.issubset(declared),
+            f"required run fields dropped: {', '.join(sorted(REQUIRED_RUN_FIELDS - declared))}")
+    require("record_sha256" in declared, "the run record must carry a digest of itself")
+    artifacts = set(data["reporting"]["artifacts"])
+    for name in ("comparison.md", "latency_sensitivity.svg", "runs.jsonl", "decision.json"):
+        require(name in artifacts, f"the run must emit {name}")
+    require("stream_sha256" in declared, "the run record must carry the intent-stream digest")
+
     boundary = str(data["claim_boundary"]).lower()
     require("synthetic simulation only" in boundary, "claim boundary must declare synthetic-only scope")
     for phrase in ("real-market performance", "realized returns", "exchange deployability"):
@@ -438,7 +553,8 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
 
     brief = doc_path.parent / "brief.md"
     require(brief.is_file(), "builder brief missing")
-    brief_text = brief.read_text(encoding="utf-8").lower()
+    brief_text_raw = brief.read_text(encoding="utf-8")
+    brief_text = brief_text_raw.lower()
     require("100-129" in brief_text, "brief must name the confirmation seed set")
     require(
         "seeds 0-29" not in brief_text.replace("development seeds 0-29", ""),
@@ -449,6 +565,53 @@ def validate(data: dict[str, object], doc_path: Path = PROTOCOL_DOC) -> None:
     text = doc_path.read_text(encoding="utf-8").lower()
     for phrase in PROTOCOL_SAFEGUARDS:
         require(phrase in text, f"protocol safeguard missing: {phrase}")
+
+    for doc, doc_text in ((brief, brief_text), (doc_path, text)):
+        stated = re.search(r"amended (\d{4}-\d{2}-\d{2})", doc_text)
+        require(stated is not None, f"{doc.name} must state the amended date")
+        require(stated.group(1) == data["amended_date"],
+                f"{doc.name} says amended {stated.group(1)}, the contract says {data['amended_date']}")
+
+    # Nothing used to read the findings document, so its narrative drifted from
+    # the contract twice without failing anything: the amendment summary skipped
+    # a run of entries and two defects had no entry at all.
+    findings = doc_path.parent / "FINDINGS.md"
+    require(findings.is_file(), "findings document missing")
+    findings_text = findings.read_text(encoding="utf-8")
+    missing = [
+        entry["id"] for entry in data["freeze"]["implementation_defects_corrected"]
+        if not re.search(rf"\b{entry['id']}\b", findings_text)
+    ]
+    require(not missing, f"FINDINGS.md does not account for {', '.join(missing)}")
+
+    # Only the narrative section counts. The header names the whole span, A1 to
+    # the latest, which would make a per-amendment check vacuous.
+    section = re.search(r"\n## Amendments after freeze\n(.*?)(?=\n## |\Z)", brief_text_raw, re.S)
+    require(section is not None, "brief.md must carry the amendments narrative")
+    narrative = re.sub(r"\(A\d+-A\d+\)", "", section.group(1))
+    gaps = [
+        amendment["id"] for amendment in data["freeze"]["amendments"]
+        if not _covered_by_a_range(amendment["id"], narrative)
+    ]
+    require(not gaps, f"the brief's amendment narrative does not cover {', '.join(gaps)}")
+
+    # The prose count of invalidating defects and the severity fields are two
+    # statements of one fact, and they drifted apart the moment a defect was
+    # added without touching the sentence.
+    invalidating = [
+        entry["id"] for entry in data["freeze"]["implementation_defects_corrected"]
+        if entry["severity"] == "invalidating"
+    ]
+    word = COUNT_WORDS.get(len(invalidating))
+    require(word is not None, f"{len(invalidating)} invalidating defects is outside the counted range")
+    for doc, doc_text in ((findings, findings_text), (brief, brief_text_raw)):
+        stated = re.search(r"\b(\w+) of them(?: \(| would have invalidated)", doc_text)
+        require(stated is not None, f"{doc.name} must state how many defects were invalidating")
+        require(stated.group(1).lower() == word,
+                f"{doc.name} says {stated.group(1).lower()} invalidating, the contract marks {word}")
+    for entry_id in invalidating:
+        require(re.search(rf"\b{entry_id}\b", findings_text) is not None,
+                f"FINDINGS.md does not name invalidating defect {entry_id}")
 
 
 def main() -> None:

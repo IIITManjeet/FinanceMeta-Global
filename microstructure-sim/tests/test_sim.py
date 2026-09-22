@@ -134,3 +134,36 @@ def test_churn_diagnostic_refuses_frozen_seeds(cfg) -> None:
     with pytest.raises(ValueError, match="refusing to run frozen seed"):
         measure_replenishment_churn(cfg, seeds=(cfg.confirmation_seeds[0],),
                                     warm_up_events=50, horizon_events=100)
+
+def test_record_carries_a_digest_of_itself(cfg) -> None:
+    """The data contract asks for a record sha256 beside the intent-stream one.
+
+    It was listed as a required field from the freeze and never produced, so a
+    reader had no way to tell an altered run record from an original.
+    """
+    import hashlib
+    import json
+
+    result = run_once(cfg, "FIFO", SENTINEL, 5)
+    record = result.to_record()
+    assert "record_sha256" in record
+
+    body = {k: v for k, v in record.items() if k != "record_sha256"}
+    expected = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert record["record_sha256"] == expected
+
+    # it must actually depend on the record, not be a constant
+    altered = dict(body, implementation_shortfall_bps=body["implementation_shortfall_bps"] + 1.0)
+    altered_digest = hashlib.sha256(
+        json.dumps(altered, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert altered_digest != record["record_sha256"]
+
+
+def test_record_digest_is_stable_across_replay(cfg) -> None:
+    """Byte-identical replay must reproduce the digest, or determinism is not shown."""
+    first = run_once(cfg, "FIFO", SENTINEL, 5).to_record()
+    second = run_once(cfg, "FIFO", SENTINEL, 5).to_record()
+    assert first["record_sha256"] == second["record_sha256"]

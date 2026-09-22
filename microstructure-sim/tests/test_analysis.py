@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -33,6 +35,8 @@ def cfg(ratio_max: float = 0.5):
         bootstrap_seed=424242,
         attenuation_ratio_max=ratio_max,
         unstable_sign_test_alpha=0.05,
+        interval_alpha=0.05,
+        decision_metric_id="implementation_shortfall_bps",
         confirmation_seeds=SEEDS,
     )
 
@@ -143,19 +147,71 @@ def test_sign_test_is_symmetric_and_handles_empty() -> None:
 
 def test_bca_interval_on_zero_centred_noise_contains_zero() -> None:
     diffs = np.random.default_rng(0).normal(0.0, 1.0, size=40)
-    assert bca_interval(diffs, resamples=800, seed=424242).contains_zero
+    assert bca_interval(diffs, resamples=800, seed=424242, alpha=0.05).contains_zero
 
 
 def test_bca_interval_on_a_large_shift_excludes_zero() -> None:
     diffs = np.random.default_rng(1).normal(25.0, 1.0, size=40)
-    assert not bca_interval(diffs, resamples=800, seed=424242).contains_zero
+    assert not bca_interval(diffs, resamples=800, seed=424242, alpha=0.05).contains_zero
 
 
 def test_bca_interval_is_deterministic_for_a_fixed_seed() -> None:
     diffs = np.linspace(-1.0, 3.0, 30)
-    a = bca_interval(diffs, resamples=500, seed=424242)
-    b = bca_interval(diffs, resamples=500, seed=424242)
+    a = bca_interval(diffs, resamples=500, seed=424242, alpha=0.05)
+    b = bca_interval(diffs, resamples=500, seed=424242, alpha=0.05)
     assert (a.low, a.high, a.point) == (b.low, b.high, b.point)
+
+
+def test_interval_alpha_has_no_default_and_comes_from_the_contract() -> None:
+    """The confidence level of the NULL rule was a keyword default in source; the
+    contract carried it only as prose. It is a field now, loaded with no default."""
+    from mechsim.contract import DEFAULT_CONTRACT, load_config
+    assert inspect.signature(bca_interval).parameters["alpha"].default is inspect.Parameter.empty
+    contract = json.loads(DEFAULT_CONTRACT.read_text(encoding="utf-8"))
+    assert load_config().interval_alpha == contract["metrics"]["decision_metric"]["interval_alpha"] == 0.05
+
+
+def test_decide_passes_the_contract_alpha_to_the_bootstrap() -> None:
+    """A wider alpha must visibly narrow the reported interval, or decide() is not using it."""
+    noise = list(np.random.default_rng(15).normal(0.0, 1.0, size=30))
+    r = records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): noise})
+    narrow, wide = cfg(), cfg()
+    narrow.interval_alpha, wide.interval_alpha = 0.5, 0.05
+    a, b = decide(r, narrow), decide(r, wide)
+    assert (a["ci_high"] - a["ci_low"]) < (b["ci_high"] - b["ci_low"])
+
+
+def test_decide_uses_the_contract_attenuation_ratio() -> None:
+    """Config carried the ratio, but nothing showed decide() read it: a literal
+    0.5 in place of cfg.attenuation_ratio_max passed every test. The zero-latency
+    cell here sits at a tenth of the baseline effect with an interval through
+    zero, so LATENCY_DRIVEN must appear at 0.5 and vanish at 0.02."""
+    big = list(np.random.default_rng(16).normal(50.0, 1.0, size=30))
+    tenth = [25.0] * 15 + [-15.0] * 15
+    r = records({
+        (5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): big,
+        (0, "main", "FIFO"): [0.0] * 30, (0, "main", "PRO_RATA"): tenth,
+    })
+    loose, tight = decide(r, cfg(ratio_max=0.5)), decide(r, cfg(ratio_max=0.02))
+    assert loose["zero_latency"]["ratio"] == pytest.approx(0.1, abs=0.02)
+    assert LATENCY_DRIVEN in loose["criteria_met"]
+    assert LATENCY_DRIVEN not in tight["criteria_met"]
+    assert (loose["attenuation_ratio_max"], tight["attenuation_ratio_max"]) == (0.5, 0.02)
+
+
+def test_decide_uses_the_contract_sign_test_alpha() -> None:
+    """Same class as the ratio: a literal 0.05 in place of
+    cfg.unstable_sign_test_alpha passed every test. Twenty positive and ten
+    negative pairs give p of about 0.099, so UNSTABLE must appear at 0.05 and
+    not at 0.2, with the interval clear of zero either way."""
+    split = [10.0] * 20 + [-1.0] * 10
+    r = records({(5, "main", "FIFO"): [0.0] * 30, (5, "main", "PRO_RATA"): split})
+    strict, lax = cfg(), cfg()
+    strict.unstable_sign_test_alpha, lax.unstable_sign_test_alpha = 0.05, 0.2
+    a, b = decide(r, strict), decide(r, lax)
+    assert not a["ci_contains_zero"] and 0.05 < a["sign_test_p"] < 0.2
+    assert a["verdict"] == UNSTABLE
+    assert UNSTABLE not in b["criteria_met"]
 
 
 # ------------------------------------------------------------------ verdicts
